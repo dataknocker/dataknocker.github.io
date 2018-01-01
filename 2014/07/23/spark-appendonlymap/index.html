@@ -1,0 +1,664 @@
+
+ <!DOCTYPE HTML>
+<html >
+<head>
+  <meta charset="UTF-8">
+  
+    <title>spark的外排:AppendOnlyMap与ExternalAppendOnlyMap | DataKnocker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="wangzejie">
+    
+
+    
+    <meta name="description" content="AppendOnlyMap/ExternalAppendOnlyMap在spark被广泛使用，如join中shuffle的reduce阶段以及combineByKey操作等。 AppendOnlyMapAppendOnlyMap是spark自己实现的Map，只能添加数据，不能remove。该Map是使用开放定址法中的二次探测法，不用自带的HashMap等应该是节省空间，提高性能。数组中a[i]=k">
+<meta name="keywords" content="spark,reduce,AppendOnlyMap">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark的外排:AppendOnlyMap与ExternalAppendOnlyMap">
+<meta property="og:url" content="http://yoursite.com/2014/07/23/spark-appendonlymap/index.html">
+<meta property="og:site_name" content="DataKnocker">
+<meta property="og:description" content="AppendOnlyMap/ExternalAppendOnlyMap在spark被广泛使用，如join中shuffle的reduce阶段以及combineByKey操作等。 AppendOnlyMapAppendOnlyMap是spark自己实现的Map，只能添加数据，不能remove。该Map是使用开放定址法中的二次探测法，不用自带的HashMap等应该是节省空间，提高性能。数组中a[i]=k">
+<meta property="og:image" content="http://yoursite.com/img/spark/ExternalAppendOnlyMap.svg">
+<meta property="og:updated_time" content="2014-08-21T04:40:16.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="spark的外排:AppendOnlyMap与ExternalAppendOnlyMap">
+<meta name="twitter:description" content="AppendOnlyMap/ExternalAppendOnlyMap在spark被广泛使用，如join中shuffle的reduce阶段以及combineByKey操作等。 AppendOnlyMapAppendOnlyMap是spark自己实现的Map，只能添加数据，不能remove。该Map是使用开放定址法中的二次探测法，不用自带的HashMap等应该是节省空间，提高性能。数组中a[i]=k">
+<meta name="twitter:image" content="http://yoursite.com/img/spark/ExternalAppendOnlyMap.svg">
+
+    
+    <link rel="alternative" href="/atom.xml" title="DataKnocker" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/img/favicon.png">
+    
+    
+    <link rel="apple-touch-icon" href="/img/jacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/jacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+  <body>
+    <header>
+      
+<div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.png" alt="DataKnocker" title="DataKnocker"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="DataKnocker">DataKnocker</a></h1>
+				<h2 class="blog-motto">learn bigdata step by step</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="Menu">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+						<li><a href="/categories">分类</a></li>
+					
+						<li><a href="/tags">标签</a></li>
+					
+						<li><a href="/about">关于我</a></li>
+					
+					<li>
+ 					
+					<form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="search" id="search" name="q" autocomplete="off" maxlength="20" placeholder="Search" />
+						<input type="hidden" name="q" value="site:yoursite.com">
+					</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+  
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2014/07/23/spark-appendonlymap/" title="spark的外排:AppendOnlyMap与ExternalAppendOnlyMap" itemprop="url">spark的外排:AppendOnlyMap与ExternalAppendOnlyMap</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/about" title="wangzejie" target="_blank" itemprop="author">wangzejie</a>
+		
+  <p class="article-time">
+    <time datetime="2014-07-23T12:46:54.000Z" itemprop="datePublished"> Published 2014-07-23</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">Contents</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#AppendOnlyMap"><span class="toc-number">1.</span> <span class="toc-text">AppendOnlyMap</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#apply"><span class="toc-number">1.1.</span> <span class="toc-text">apply</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#update"><span class="toc-number">1.2.</span> <span class="toc-text">update</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#changeValue"><span class="toc-number">1.3.</span> <span class="toc-text">changeValue</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#iterator"><span class="toc-number">1.4.</span> <span class="toc-text">iterator</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#destructiveSortedIterator"><span class="toc-number">1.5.</span> <span class="toc-text">destructiveSortedIterator</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ExternalAppendOnlyMap"><span class="toc-number">2.</span> <span class="toc-text">ExternalAppendOnlyMap</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#currentMap"><span class="toc-number">2.1.</span> <span class="toc-text">currentMap</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#spilledMaps"><span class="toc-number">2.2.</span> <span class="toc-text">spilledMaps</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#maxMemoryThreshold"><span class="toc-number">2.3.</span> <span class="toc-text">maxMemoryThreshold</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#insert"><span class="toc-number">2.4.</span> <span class="toc-text">insert</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#spill"><span class="toc-number">2.5.</span> <span class="toc-text">spill</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#iterator-1"><span class="toc-number">2.6.</span> <span class="toc-text">iterator</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ExternalIterator"><span class="toc-number">2.7.</span> <span class="toc-text">ExternalIterator</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#DiskMapIterator"><span class="toc-number">2.8.</span> <span class="toc-text">DiskMapIterator</span></a></li></ol></li></ol>
+		
+		</div>
+		
+		<p>AppendOnlyMap/ExternalAppendOnlyMap在spark被广泛使用，如join中shuffle的reduce阶段以及combineByKey操作等。</p>
+<h2 id="AppendOnlyMap"><a href="#AppendOnlyMap" class="headerlink" title="AppendOnlyMap"></a>AppendOnlyMap</h2><p>AppendOnlyMap是spark自己实现的Map，只能添加数据，不能remove。该Map是使用开放定址法中的二次探测法，不用自带的HashMap等应该是节省空间，提高性能。<br>数组中a[i]=keyi, a[i+1]=valuei, 即用两个位置来存储kv对。<br>growThreshold=LOAD_FACTOR * capacity,  当添加的元素超过该值时，数组会进行grow, capacity翻倍，同时所有的kv都会进行rehash重新分配位置。<br>主要方法：</p>
+<h3 id="apply"><a href="#apply" class="headerlink" title="apply"></a>apply</h3><p>即调用Map(key)访问value时。根据key的hash(具体是murmur3_32)找到位置，如果目标位置的key与要查找的key不一样，则使用二次探测法继续查找，直到找到为止。</p>
+<h3 id="update"><a href="#update" class="headerlink" title="update"></a>update</h3><p>找到对应key的value位置，将新value覆盖原value。</p>
+<h3 id="changeValue"><a href="#changeValue" class="headerlink" title="changeValue"></a>changeValue</h3><p>spark中用的比较多的方法</p>
+<pre><code>def changeValue(key: K, updateFunc: (Boolean, V) =&gt; V): V = {
+    ...
+    var pos = rehash(k.hashCode) &amp; mask
+    var i = 1
+    while (true) {
+      val curKey = data(2 * pos)
+      if (k.eq(curKey) || k.equals(curKey)) {
+          //当对应的key存在时，updateFunc的第一个参数hadValue=true
+        val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
+        data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
+        return newValue
+      } else if (curKey.eq(null)) {
+          //当对应key不存在时，updateFunc的第一个参数hadValue=false
+        val newValue = updateFunc(false, null.asInstanceOf[V])
+        data(2 * pos) = k
+        data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
+        incrementSize()
+        return newValue
+      } else {
+          //二次探测法代码
+        val delta = i
+        pos = (pos + delta) &amp; mask
+        i += 1
+      }
+    }
+    ...
+}
+</code></pre><p>该方法最核心的其实是外部传进来的updateFunc(hadValue, oldValue), updateFunc一般是当hadValue为false时createCombiner(v)作为新value， hadValue为true时mergeValue(oldValue,v),将v加到oldValue中。</p>
+<h3 id="iterator"><a href="#iterator" class="headerlink" title="iterator"></a>iterator</h3><p>一般是在RDD的compute中会调用该方法，作为RDD操作的Iterator, 即其下游RDD可以为此为数据源。主要也是实现hasNext和next方法，它们都调用了nextValue方法。<br>nextValue则从pos(初始化是0)开始遍历，直到找到data(2*pos)!=null的，则将结果返回。<br>hasNext是判断nextValue()!=null。<br>next是得到nextValue()的返回值，且将pos+=1。</p>
+<h3 id="destructiveSortedIterator"><a href="#destructiveSortedIterator" class="headerlink" title="destructiveSortedIterator"></a>destructiveSortedIterator</h3><p>转化成一般的数组，并按key对kv进行排序。失去了Map的特性。主要用于外排时将Map排序输出到disk中。<br>实现思路是：将原数组的值不断向数组左端紧凑移动，且将原先占用两个位置的kv转成(k,v)只占一个位置，然后对数组按key进行kv排序。排序方法是KCComparator,即按key的hashcode进行排序。然后创建一个Iterator,其hasNext和next都是对新的数组进行相应遍历操作。</p>
+<p>spark早期版本采用的是AppendOnlyMap来实现shuffle reduce阶段数据的聚合，当数据量不大时没什么问题，但当数据量很大时就会占用大量内存，最后可能OOM。所以从spark 0.9开始就引入了ExternalAppendOnlyMap来代替AppendOnlyMap。</p>
+<h2 id="ExternalAppendOnlyMap"><a href="#ExternalAppendOnlyMap" class="headerlink" title="ExternalAppendOnlyMap"></a>ExternalAppendOnlyMap</h2><p><em>note:当spark.shuffle.spill=true时会启用ExternalAppendOnlyMap，默认为true.  为false时就启用AppendOnlyMap</em></p>
+<p><img src="../../../../img/spark/ExternalAppendOnlyMap.svg" alt="外排的操作流程"></p>
+<p>ExternalAppendOnlyMap也在内存维护了一个SizeTrackingAppendOnlyMap(<em>继承于AppendOnlyMap</em>),当该Map元素数超过一定值时就spill到磁盘。最后ExternalAppendOnlyMap其实是维护了一个内存Map:currentMap以及多个diskMap:spillMaps。</p>
+<p>主要属性和参数：</p>
+<h3 id="currentMap"><a href="#currentMap" class="headerlink" title="currentMap"></a>currentMap</h3><p>SizeTrackingAppendOnlyMap,继承于AppendOnlyMap。是ExternalAppendOnlyMap的内存Map。</p>
+<h3 id="spilledMaps"><a href="#spilledMaps" class="headerlink" title="spilledMaps"></a>spilledMaps</h3><p>new ArrayBuffer[DiskMapIterator]， 每个DiskMapIterator都指向了相应的spill到disk上的文件数据。</p>
+<h3 id="maxMemoryThreshold"><a href="#maxMemoryThreshold" class="headerlink" title="maxMemoryThreshold"></a>maxMemoryThreshold</h3><p>该值决定了用于该worker上同时运行的任务的currentMap的大小之和，即num(running tasks) * size(各task的currentMap)。该值由spark.shuffle.memoryFraction和spark.shuffle.safetyFraction决定，具体计算方式如下：</p>
+<pre><code>val maxMemoryThreshold = {
+    val memoryFraction = sparkConf.getDouble(&quot;spark.shuffle.memoryFraction&quot;, 0.3)
+    val safetyFraction = sparkConf.getDouble(&quot;spark.shuffle.safetyFraction&quot;, 0.8)
+    (Runtime.getRuntime.maxMemory * memoryFraction * safetyFraction).toLong //即worker的内存*0.24
+}
+</code></pre><h3 id="insert"><a href="#insert" class="headerlink" title="insert"></a>insert</h3><p>插入kv对的主要方法。<br>shouldSpill是剩余空间是否足够让currentMap进行扩容,够的话进行大小翻倍，不够的话则将currentMap spill到disk中。<br>这里需要判断是否需要进行shouldSpill判断，具体判断逻辑如下：</p>
+<pre><code>numPairsInMemory &gt; trackMemoryThreshold &amp;&amp; currentMap.atGrowThreshold
+</code></pre><p>numPairsInMemory为已经添加的kv数，trackMemoryThreshold为固定值1000。也就是前1000个元素是可以直接往currentMap放而不会发生spill。<br>由于currentMap初始时可容纳kv的个数为64，则在numPairsInMemory &gt; trackMemoryThreshold前currentMap还是会发生几次grow。当numPairsInMemory &gt; trackMemoryThreshold时，则currentMap本次到达growThreshold时就要进行shouldSpill的判断。</p>
+<ul>
+<li>当这个结果是false时，则未达到需要进行shouldSpill判断的条件，则直接currentMap.changeValue(key, update)将kv更新到currentMap中。</li>
+<li>当这个结果是true时，则需要进行shouldSpill到disk判断。</li>
+</ul>
+<p>shouldSpill判断的具体步骤为：根据maxMemoryThreshold以及目前正在运行的其他task的currentMap大小 来判断是否有足够内存来让currentMap的大小翻倍。</p>
+<pre><code>val threadId = Thread.currentThread().getId
+val previouslyOccupiedMemory = shuffleMemoryMap.get(threadId)
+val availableMemory = maxMemoryThreshold -
+    (shuffleMemoryMap.values.sum - previouslyOccupiedMemory.getOrElse(0L))
+// Assume map growth factor is 2x
+shouldSpill = availableMemory &lt; mapSize * 2
+</code></pre><ul>
+<li>shouldSpill=false：让 shuffleMemoryMap(threadId) = mapSize * 2, 即让当前任何占用2倍的空间。 currentMap的扩容会发生之后的currentMap.changeValue里。</li>
+<li>shouldSpill=true: 进行spill操作。</li>
+</ul>
+<h3 id="spill"><a href="#spill" class="headerlink" title="spill"></a>spill</h3><p>将currentMap写到disk上。具体步骤为：<br>1、通过currentMap.destructiveSortedIterator(KCComparator)将currentMap变成按key的hashCode进行排序的数组，并封装成相应的Iterator。<br>2、遍历1得到的Iterator，将kv write到DiskBlockObjectWriter中，但写入量objectsWritten达到serializerBatchSize(<em>批量写到文件的记录数，由spark.shuffle.spill.batchSize控制，默认是10000，太小的话则在写文件时性能变低</em>)时进行writer.flush()将之前的数据写到文件中，并将spill到磁盘的大小记录到batchSizes中，batchSizes记录了每次spill时的数据大小，便于之后的读取(<em>因为批量写到磁盘时经过了压缩序列化，所以读取时要读取与写时等量的数据才可以正常的解压反序列化，所以batchSizes十分重要</em>)<br>3、不断重复2直到将currentMap的数据全部写到文件中。<br>4、生成一个DiskMapIterator(用于读取文件数据)，将加到spillMaps中。这里会将batchSizes放到DiskMapIterator并于从文件读取数据。<br>4、reset工作：</p>
+<ul>
+<li>生成新的currentMap。</li>
+<li>shuffleMemoryMap(Thread.currentThread().getId)=0即将使用的currentMap容量清0。</li>
+<li>numPairsInMemory重置为0.</li>
+</ul>
+<h3 id="iterator-1"><a href="#iterator-1" class="headerlink" title="iterator"></a>iterator</h3><p>一般是在RDD的compute中会调用该方法，作为RDD操作的Iterator, 即其下游RDD可以为此为数据源。</p>
+<ul>
+<li>当spillMaps为空,即只有currentMap，从未spill到disk时，直接调用currentMap.iterator()</li>
+<li>当spillMaps不空时，则要进行外排过程ExternalIterator(<em>和Hadoop的reduce的sort阶段以及hbase的memStore、storeFile遍历类似</em>)</li>
+</ul>
+<h3 id="ExternalIterator"><a href="#ExternalIterator" class="headerlink" title="ExternalIterator"></a>ExternalIterator</h3><p>外排的主要思想：各个Iterator已经按key.hashcode排好序，利用一个优先队列保存各个Iterator, hasNext是看优先队列是否有元素，next则是返回当前最小hashcode的最小key对应的所有value合并成的combine,即(minKey,minCombiner)。<br>具体实现如下：<br>1、各个Iterator: 由currentMap.destructiveSortedIterator形成的Iterator以及spillMaps中的DiskMapIterator<br>2、优先队列为mergeHeap = new mutable.PriorityQueue[StreamBuffer]，StreamBuffer的主要方法如下：</p>
+<pre><code>private case class StreamBuffer(iterator: Iterator[(K, C)], pairs: ArrayBuffer[(K, C)])
+  extends Comparable[StreamBuffer] {
+
+  def isEmpty = pairs.length == 0
+
+  // Invalid if there are no more pairs in this stream
+  def minKeyHash = {
+    assert(pairs.length &gt; 0)
+    pairs.head._1.hashCode()
+  }
+
+  override def compareTo(other: StreamBuffer): Int = {
+    // descending order because mutable.PriorityQueue dequeues the max, not the min
+    if (other.minKeyHash &lt; minKeyHash) -1 else if (other.minKeyHash == minKeyHash) 0 else 1
+  }
+ }
+}
+</code></pre><p>StreamBuffer存的是某个Iterator,以及该Iterator按某个key.hashCode聚合的结果。其compareTo决定了其在mergeHeap的位置。StreamBuffer的key.hashCode都是一样的，这样minKeyHash可以从其存储的数据集中随便取一个就行。这里会让hashCode相同的两个key同时存到这个StreamBuffer中，也就是key不相同，这里会有问题吗，后面的讲到的mergeIfKeyExists会进行key是否相同的判断。<br>3、将各个Iterator转成StreamBuffer, 这个过程需要获得各个Iterator最小的keyHash对应的所有kv对，具体实现是getMorePairs方法。</p>
+<pre><code>private def getMorePairs(it: Iterator[(K, C)]): ArrayBuffer[(K, C)] = {
+  val kcPairs = new ArrayBuffer[(K, C)]
+  if (it.hasNext) {
+    var kc = it.next()
+    kcPairs += kc
+    val minHash = kc._1.hashCode()
+    while (it.hasNext &amp;&amp; kc._1.hashCode() == minHash) {
+      kc = it.next()
+      kcPairs += kc
+    }
+  }
+  kcPairs
+}
+</code></pre><p>该方法十分简单，就是获得第一个key.hashCode即最小的minHash(因为Iterator已经按key.hashCode排好序)，然后获得和minHash相同的所有kv对。<br>4、hasNext：mergeHeap优先队列是否为空<br>5、next: 外排的核心逻辑。<br>   a、mergeHeap.dequeue()将队列顶最小的StreamBuffer出队列并加到mergedBuffers(<em>mergedBuffers为了记录出队的StreamBuffer,便于下一轮继续加入</em>)中，得到minHash,以及(minKey, minCombiner)。<br>   b、然后要去剩下的StreamBuffer上获得和minHash相同的kv对，并与(minKey, minCombiner)进行合并。从队列顶不断dequeue与minHash相同的StreamBuffer并加到mergedBuffers中,每取到一个StreamBuffer则进行value合并，合并具体调用mergeIfKeyExists。</p>
+<pre><code>private def mergeIfKeyExists(key: K, baseCombiner: C, buffer: StreamBuffer): C = {
+  var i = 0
+  while (i &lt; buffer.pairs.length) {
+    val (k, c) = buffer.pairs(i)
+    if (k == key) {
+      buffer.pairs.remove(i)
+      //baseCombiner即b中的minCombiner。这里mergeCombiners的原因是在currentMap中的updateFunc时生成的是Combiner
+      return mergeCombiners(baseCombiner, c)
+    }
+    i += 1
+  }
+  baseCombiner
+}
+</code></pre><p>   这里只有与minKey相同的kv才会被选取与minCombiner进行合并且从对应的StreamBuffer中移除，否则仍保留。<br>   c、遍历mergedBuffers即dequeue的各StreamBuffer判断其是否还有kv对，没有的话则重新调用getMorePairs获得下一波kv对。 然后将StreamBuffer再次enqueue到mergeHeap中进行重新排序。当然如果某个StreamBuffer还是没kv对，则说明对应的Iterator已经遍历完，不需要再加到mergeHeap中。<br>   d、返回(minKey,minCombiner)</p>
+<h3 id="DiskMapIterator"><a href="#DiskMapIterator" class="headerlink" title="DiskMapIterator"></a>DiskMapIterator</h3><p>从disk文件读取数据形成Iterator。<br>hasNext:是否读到文件末尾<br>next: 先调用nextBatchStream()将batchSizes.remove(0)即当前要读的数据量的数据读到bufferedStream中，然后每次next都从该缓存中获得kv对，当缓存中数据取完时又调用nextBatchStream()重新从文件批量读取下块数据。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+<div class="article-catetags">
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/spark/">spark</a>
+</div>
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/spark/">spark</a><a href="/tags/reduce/">reduce</a><a href="/tags/AppendOnlyMap/">AppendOnlyMap</a>
+  </div>
+
+</div>
+
+
+
+	<div class="article-share" id="share">
+	
+	<div class="share-jiathis">
+	  
+<div class="jiathis_style_24x24">
+	<a class="jiathis_button_tsina"></a>
+	<a class="jiathis_button_weixin"></a>
+	<a class="jiathis_button_renren"></a>
+	<a class="jiathis_button_qzone"></a>
+	<a class="jiathis_button_googleplus"></a>
+	<a class="jiathis_button_douban"></a>
+	<a href="http://www.jiathis.com/share" class="jiathis jiathis_txt jtico jtico_jiathis" target="_blank"></a>
+	<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript" >
+    var jiathis_config={
+    data_track_clickback:true,
+    sm:"copy,renren,cqq",
+    pic:"",
+    summary:"",
+     ralateuid:{"tsina":"2036985411"},hideMore:false}
+    
+  </script> 
+<script type="text/javascript" src="//v3.jiathis.com/code/jia.js?uid=
+1796651" charset="utf-8"></script>      
+
+	 </div>
+	
+	</div>
+
+
+</footer>
+
+   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2014/08/29/spark查看分区元素数工具/" title="spark查看分区元素数工具">
+  <strong>上一篇：</strong><br/>
+  <span>
+  spark查看分区元素数工具</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2014/07/22/spark rdd keyvalue操作/"  title="spark RDD keyvalue操作">
+ <strong>下一篇：</strong><br/> 
+ <span>spark RDD keyvalue操作
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="Show Sidebar"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">Contents</strong>
+ 
+ <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#AppendOnlyMap"><span class="toc-number">1.</span> <span class="toc-text">AppendOnlyMap</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#apply"><span class="toc-number">1.1.</span> <span class="toc-text">apply</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#update"><span class="toc-number">1.2.</span> <span class="toc-text">update</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#changeValue"><span class="toc-number">1.3.</span> <span class="toc-text">changeValue</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#iterator"><span class="toc-number">1.4.</span> <span class="toc-text">iterator</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#destructiveSortedIterator"><span class="toc-number">1.5.</span> <span class="toc-text">destructiveSortedIterator</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ExternalAppendOnlyMap"><span class="toc-number">2.</span> <span class="toc-text">ExternalAppendOnlyMap</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#currentMap"><span class="toc-number">2.1.</span> <span class="toc-text">currentMap</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#spilledMaps"><span class="toc-number">2.2.</span> <span class="toc-text">spilledMaps</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#maxMemoryThreshold"><span class="toc-number">2.3.</span> <span class="toc-text">maxMemoryThreshold</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#insert"><span class="toc-number">2.4.</span> <span class="toc-text">insert</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#spill"><span class="toc-number">2.5.</span> <span class="toc-text">spill</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#iterator-1"><span class="toc-number">2.6.</span> <span class="toc-text">iterator</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ExternalIterator"><span class="toc-number">2.7.</span> <span class="toc-text">ExternalIterator</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#DiskMapIterator"><span class="toc-number">2.8.</span> <span class="toc-text">DiskMapIterator</span></a></li></ol></li></ol>
+ 
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="Hide Sidebar"></a></div>
+<aside class="clearfix">
+
+  
+<div class="github-card">
+<p class="asidetitle">Github Card</p>
+<div class="github-card" data-github="dataknocker" data-theme="medium"></div>
+<script type="text/javascript" src="//cdn.jsdelivr.net/github-cards/latest/widget.js" ></script>
+</div>
+
+
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">Categories</p>
+		<ul>
+		
+		  
+			<li><a href="/categories/Spark/" title="Spark">Spark<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/solr/" title="solr">solr<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/spark/" title="spark">spark<sup>8</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+		  
+		
+		</ul>
+</div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">Tags</p>
+		<ul class="clearfix">
+		
+			
+				<li><a href="/tags/spark/" title="spark">spark<sup>9</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/RDD/" title="RDD">RDD<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/shuffle/" title="shuffle">shuffle<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/standalone/" title="standalone">standalone<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/solr/" title="solr">solr<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/空间索引/" title="空间索引">空间索引<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/AppendOnlyMap/" title="AppendOnlyMap">AppendOnlyMap<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
+			
+		
+		</ul>
+</div>
+
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS</a>
+</div>
+
+  <div class="weiboshow">
+  <p class="asidetitle">Weibo</p>
+    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<section class="info">
+		<p> 进击的菜鸟 <br/>
+			专注于大数据框架、机器学习，会点前端、后台开发</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1619689670" target="_blank" class="icon-weibo" title="微博"></a>
+		
+		
+		<a href="https://github.com/dataknocker" target="_blank" class="icon-github" title="github"></a>
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		<a href="mailto:511217265@qq.com" target="_blank" class="icon-email" title="Email Me"></a>
+		
+	</div>
+			
+		
+
+		<p class="copyright">
+		Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wuchong/jacman" target="_blank" title="Jacman">Jacman</a> © 2018 
+		
+		<a href="/about" target="_blank" title="wangzejie">wangzejie</a>
+		
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.0.3.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+<script src="/js/jquery.qrcode-0.12.0.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+  
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else{
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  c.click(function(){
+    ta.css('display', 'block').addClass('fadeIn');
+  });
+  o.click(function(){
+    ta.css('display', 'none');
+  });
+  $(window).scroll(function(){
+    ta.css("top",Math.max(140,320-$(this).scrollTop()));
+  });
+});
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<!-- Analytics Begin -->
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-52840244-1', 'auto');  
+ga('send', 'pageview');
+</script>
+
+
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?37562e8d14eb29a7932c0447aea7d3c3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+
+
+<!-- Analytics End -->
+
+<!-- Totop Begin -->
+
+	<div id="totop">
+	<a title="Back to Top"><img src="/img/scrollup.png"/></a>
+	</div>
+	<script src="/js/totop.js"></script>
+
+<!-- Totop End -->
+
+<!-- MathJax Begin -->
+<!-- mathjax config similar to math.stackexchange -->
+
+
+<!-- MathJax End -->
+
+<!-- Tiny_search Begin -->
+
+<!-- Tiny_search End -->
+
+  </body>
+</html>

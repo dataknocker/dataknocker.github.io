@@ -14,7 +14,7 @@
     <meta name="description" content="大数据架构以及数据分析与挖掘">
 <meta property="og:type" content="website">
 <meta property="og:title" content="DataKnocker">
-<meta property="og:url" content="http://yoursite.com/index.html">
+<meta property="og:url" content="http://yoursite.com/page/2/index.html">
 <meta property="og:site_name" content="DataKnocker">
 <meta property="og:description" content="大数据架构以及数据分析与挖掘">
 <meta name="twitter:card" content="summary">
@@ -82,15 +82,16 @@
   
 <section class="post" itemscope itemprop="blogitem">
   
-    <a href="/2014/11/12/idea上debug-spark-standalone/" title="idea上debug spark standalone" itemprop="url">
+    <a href="/2014/04/11/solr空间索引原理及源码分析/" title="solr空间索引原理及源码分析" itemprop="url">
   
-    <h1 itemprop="name">idea上debug spark standalone</h1>
+    <h1 itemprop="name">solr空间索引原理及源码分析</h1>
     
      
-           <p itemprop="description" >引言debug spark可谓是研究spark源码的利器。spark local模式和其他分布式模式有很大不同，虽然可以在local模式下进行debug，但有很多东西只有在分布式模式下才有用。本文主要介绍在idea上如何remote debug spark的standalone模</p>
+           <p itemprop="description" >note:图片请右键 在新页签打开，可以放大看
+solr的4.0-4.1版本使用GeohashField.createSpatialQuery(), 未使用IntersectsPrefixTreeFilter(继承于AbstractVisitingPrefixTreeFilter</p>
         
     
-    <time datetime="2014-11-12T11:01:31.000Z" itemprop="datePublished">2014-11-12</time>
+    <time datetime="2014-04-11T05:17:04.000Z" itemprop="datePublished">2014-04-11</time>
   </a>
 </section>
 
@@ -102,190 +103,18 @@
   
 <section class="post" itemscope itemprop="blogitem">
   
-    <a href="/2014/11/12/spark-shuffle重用/" title="spark stage shuffle重用" itemprop="url">
+    <a href="/2014/04/11/mapreduce在相似度计算中的应用及优化/" title="MapReduce在相似度计算中的应用及优化" itemprop="url">
   
-    <h1 itemprop="name">spark stage shuffle重用</h1>
+    <h1 itemprop="name">MapReduce在相似度计算中的应用及优化</h1>
     
      
-           <p itemprop="description" >在运行时看DAG 图时有时候会现一些stage会被跳过。这是因为当一个经过shuffle后的rdd，如ShuffledRDD, 再次被使用时，该ShuffledRDD对应的stage不会重新计算(除非某些分区数据出问题了，也只会单独对这些分区进行计算)。具体原理：
-1、Shuff</p>
+           <p itemprop="description" >需求：计算用户的相似度，有用户列表U和特征列表F以及用户和特征的关系。 根据 ∩ 的交集数来判断U1和U2的相似度。解决方法：
+一、用户维度的Join最暴力低效的方法，因为用户量一般很大，所以join效率极低。一般不考虑。
+二、特征维度将用户对特征的矩阵转成特征对用户的矩阵。
+1</p>
         
     
-    <time datetime="2014-11-12T07:12:38.000Z" itemprop="datePublished">2014-11-12</time>
-  </a>
-</section>
-
-
-
-
-
-
-  
-<section class="post" itemscope itemprop="blogitem">
-  
-    <a href="/2014/10/11/idea上运行local的spark-sql-hive/" title="idea上运行local的spark sql hive" itemprop="url">
-  
-    <h1 itemprop="name">idea上运行local的spark sql hive</h1>
-    
-     
-           <p itemprop="description" >在本机上通过idea跑spark sql进行hive查询等操作，一方面可以用于debug spark sql相关源码，另一方面可以加快开发测试进度，比如添加Udf等。这里总共两步：1、安装hive remote metastore模式 2、idea上的相关配置开发
-hive 0.</p>
-        
-    
-    <time datetime="2014-10-11T09:36:50.000Z" itemprop="datePublished">2014-10-11</time>
-  </a>
-</section>
-
-
-
-
-
-
-  
-<section class="post" itemscope itemprop="blogitem">
-  
-    <a href="/2014/09/11/spark-stage命名/" title="spark stage命名原理" itemprop="url">
-  
-    <h1 itemprop="name">spark stage命名原理</h1>
-    
-     
-           <p itemprop="description" >sparkUI中的stage名称可以方便进行程序逻辑分析，但如果不了解stage的命名原理，看sparkUI时有时就会一头雾水。
-stage的名称来自两个地方：callSite (callSite = getCallSite = Utils.getCallSiteInfo) 与 </p>
-        
-    
-    <time datetime="2014-09-11T11:45:16.000Z" itemprop="datePublished">2014-09-11</time>
-  </a>
-</section>
-
-
-
-
-
-
-  
-<section class="post" itemscope itemprop="blogitem">
-  
-    <a href="/2014/09/01/读取spark-checkpoint的数据/" title="读取spark checkpoint的数据" itemprop="url">
-  
-    <h1 itemprop="name">读取spark checkpoint的数据</h1>
-    
-     
-           <p itemprop="description" >checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。
-checkpoint write data:
-sc.setCheckpointDir(&amp;quot;data/checkpoint&amp;</p>
-        
-    
-    <time datetime="2014-09-01T07:18:58.000Z" itemprop="datePublished">2014-09-01</time>
-  </a>
-</section>
-
-
-
-
-
-
-  
-<section class="post" itemscope itemprop="blogitem">
-  
-    <a href="/2014/08/29/spark查看分区元素数工具/" title="spark查看分区元素数工具" itemprop="url">
-  
-    <h1 itemprop="name">spark查看分区元素数工具</h1>
-    
-     
-           <p itemprop="description" >spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法：
-object RDDUtils {
-  def getPart</p>
-        
-    
-    <time datetime="2014-08-29T03:03:21.000Z" itemprop="datePublished">2014-08-29</time>
-  </a>
-</section>
-
-
-
-
-
-
-  
-<section class="post" itemscope itemprop="blogitem">
-  
-    <a href="/2014/07/23/spark-appendonlymap/" title="spark的外排:AppendOnlyMap与ExternalAppendOnlyMap" itemprop="url">
-  
-    <h1 itemprop="name">spark的外排:AppendOnlyMap与ExternalAppendOnlyMap</h1>
-    
-     
-           <p itemprop="description" >AppendOnlyMap/ExternalAppendOnlyMap在spark被广泛使用，如join中shuffle的reduce阶段以及combineByKey操作等。
-AppendOnlyMapAppendOnlyMap是spark自己实现的Map，只能添加数据，不能re</p>
-        
-    
-    <time datetime="2014-07-23T12:46:54.000Z" itemprop="datePublished">2014-07-23</time>
-  </a>
-</section>
-
-
-
-
-
-
-  
-<section class="post" itemscope itemprop="blogitem">
-  
-    <a href="/2014/07/22/spark rdd keyvalue操作/" title="spark RDD keyvalue操作" itemprop="url">
-  
-    <h1 itemprop="name">spark RDD keyvalue操作</h1>
-    
-     
-           <p itemprop="description" >主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换
-implicit def rddToPairRDDFunctions[K: Class</p>
-        
-    
-    <time datetime="2014-07-22T12:10:42.000Z" itemprop="datePublished">2014-07-22</time>
-  </a>
-</section>
-
-
-
-
-
-
-  
-<section class="post" itemscope itemprop="blogitem">
-  
-    <a href="/2014/07/20/RDD各操作详解/" title="RDD操作详解" itemprop="url">
-  
-    <h1 itemprop="name">RDD操作详解</h1>
-    
-     
-           <p itemprop="description" >rdd最主要方法
-getPreferredLocations: 本地性相关(以后再详细研究)
-dependencies/getDependencies: 判断是否有ShuffleMapTask、获得firstParent
-partitions/getPartitions: 决定T</p>
-        
-    
-    <time datetime="2014-07-20T05:17:04.000Z" itemprop="datePublished">2014-07-20</time>
-  </a>
-</section>
-
-
-
-
-
-
-  
-<section class="post" itemscope itemprop="blogitem">
-  
-    <a href="/2014/07/11/spark相关流程解析/" title="spark相关流程解析" itemprop="url">
-  
-    <h1 itemprop="name">spark相关流程解析</h1>
-    
-     
-           <p itemprop="description" >看了spark的部分源码，画了一些流程图，不好分类，就放在一起，以后再分开吧。note:请右击图片，在新页签打开图片
-spark启动流程图
-各组件名称说明
-master: 资源管理，分配driver到哪个Worker，分配Executor等。standalone时是设置的7077</p>
-        
-    
-    <time datetime="2014-07-11T09:22:03.000Z" itemprop="datePublished">2014-07-11</time>
+    <time datetime="2014-04-11T03:36:54.000Z" itemprop="datePublished">2014-04-11</time>
   </a>
 </section>
 
@@ -296,7 +125,7 @@ master: 资源管理，分配driver到哪个Worker，分配Executor等。standal
 
 
   <nav id="page-nav" class="clearfix unexpand">
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/">Next<span></span></a>
+    <a class="extend prev" rel="prev" href="/"><span></span>Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span>
   </nav>
 
 </div>

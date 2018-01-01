@@ -1,0 +1,680 @@
+
+ <!DOCTYPE HTML>
+<html >
+<head>
+  <meta charset="UTF-8">
+  
+    <title>idea上运行local的spark sql hive | DataKnocker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="wangzejie">
+    
+
+    
+    <meta name="description" content="在本机上通过idea跑spark sql进行hive查询等操作，一方面可以用于debug spark sql相关源码，另一方面可以加快开发测试进度，比如添加Udf等。这里总共两步：1、安装hive remote metastore模式 2、idea上的相关配置开发 hive 0.13安装 remote metastore服务器test01作为remote端,test02作为client端, tes">
+<meta name="keywords" content="spark sql,hive">
+<meta property="og:type" content="article">
+<meta property="og:title" content="idea上运行local的spark sql hive">
+<meta property="og:url" content="http://yoursite.com/2014/10/11/idea上运行local的spark-sql-hive/index.html">
+<meta property="og:site_name" content="DataKnocker">
+<meta property="og:description" content="在本机上通过idea跑spark sql进行hive查询等操作，一方面可以用于debug spark sql相关源码，另一方面可以加快开发测试进度，比如添加Udf等。这里总共两步：1、安装hive remote metastore模式 2、idea上的相关配置开发 hive 0.13安装 remote metastore服务器test01作为remote端,test02作为client端, tes">
+<meta property="og:updated_time" content="2014-10-20T22:05:34.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="idea上运行local的spark sql hive">
+<meta name="twitter:description" content="在本机上通过idea跑spark sql进行hive查询等操作，一方面可以用于debug spark sql相关源码，另一方面可以加快开发测试进度，比如添加Udf等。这里总共两步：1、安装hive remote metastore模式 2、idea上的相关配置开发 hive 0.13安装 remote metastore服务器test01作为remote端,test02作为client端, tes">
+
+    
+    <link rel="alternative" href="/atom.xml" title="DataKnocker" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/img/favicon.png">
+    
+    
+    <link rel="apple-touch-icon" href="/img/jacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/jacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+  <body>
+    <header>
+      
+<div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.png" alt="DataKnocker" title="DataKnocker"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="DataKnocker">DataKnocker</a></h1>
+				<h2 class="blog-motto">learn bigdata step by step</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="Menu">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+						<li><a href="/categories">分类</a></li>
+					
+						<li><a href="/tags">标签</a></li>
+					
+						<li><a href="/about">关于我</a></li>
+					
+					<li>
+ 					
+					<form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="search" id="search" name="q" autocomplete="off" maxlength="20" placeholder="Search" />
+						<input type="hidden" name="q" value="site:yoursite.com">
+					</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+  
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2014/10/11/idea上运行local的spark-sql-hive/" title="idea上运行local的spark sql hive" itemprop="url">idea上运行local的spark sql hive</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/about" title="wangzejie" target="_blank" itemprop="author">wangzejie</a>
+		
+  <p class="article-time">
+    <time datetime="2014-10-11T09:36:50.000Z" itemprop="datePublished"> Published 2014-10-11</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">Contents</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#hive-0-13安装-remote-metastore"><span class="toc-number">1.</span> <span class="toc-text">hive 0.13安装 remote metastore</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#idea上运行local的spark-sql"><span class="toc-number">2.</span> <span class="toc-text">idea上运行local的spark sql</span></a></li></ol>
+		
+		</div>
+		
+		<p>在本机上通过idea跑spark sql进行hive查询等操作，一方面可以用于debug spark sql相关源码，另一方面可以加快开发测试进度，比如添加Udf等。<br>这里总共两步：1、安装hive remote metastore模式 2、idea上的相关配置开发</p>
+<h2 id="hive-0-13安装-remote-metastore"><a href="#hive-0-13安装-remote-metastore" class="headerlink" title="hive 0.13安装 remote metastore"></a>hive 0.13安装 remote metastore</h2><p>服务器test01作为remote端,test02作为client端, test02也需要有hadooop环境(和test01一样)<br>1、下载hive 0.13并解压<br>2、test01上配置hive-site.xml,加入mysql相关 (包括将mysql connect包放到lib中)</p>
+<pre><code>&lt;?xml version=&quot;1.0&quot;?&gt;  
+&lt;?xml-stylesheet type=&quot;text/xsl&quot; href=&quot;configuration.xsl&quot;?&gt;  
+
+&lt;configuration&gt;  
+
+&lt;property&gt;  
+  &lt;name&gt;hive.metastore.warehouse.dir&lt;/name&gt;  
+  &lt;value&gt;/user/hive/warehouse&lt;/value&gt;  
+&lt;/property&gt;  
+
+&lt;property&gt;  
+  &lt;name&gt;javax.jdo.option.ConnectionURL&lt;/name&gt;  
+  &lt;value&gt;jdbc:mysql://test01:3306/hive?createDatabaseIfNotExist=true&lt;/value&gt;  
+&lt;/property&gt;  
+
+&lt;property&gt;  
+  &lt;name&gt;javax.jdo.option.ConnectionDriverName&lt;/name&gt;  
+  &lt;value&gt;com.mysql.jdbc.Driver&lt;/value&gt;  
+&lt;/property&gt;  
+
+&lt;property&gt;  
+  &lt;name&gt;javax.jdo.option.ConnectionUserName&lt;/name&gt;  
+  &lt;value&gt;hive&lt;/value&gt;  
+&lt;/property&gt;  
+
+&lt;property&gt;  
+  &lt;name&gt;javax.jdo.option.ConnectionPassword&lt;/name&gt;  
+  &lt;value&gt;password&lt;/value&gt;  
+&lt;/property&gt;
+</code></pre><p>3、启动test01上的metastore server: nohup hive - -service metastore&gt; metastore.log 2&gt;&amp;1 &amp;<br>   默认端口为9083<br>4、配置test02上的hive-site.xml</p>
+<pre><code>&lt;?xml version=&quot;1.0&quot;?&gt;
+&lt;?xml-stylesheet type=&quot;text/xsl&quot; href=&quot;configuration.xsl&quot;?&gt;
+&lt;configuration&gt;
+    &lt;property&gt;
+        &lt;name&gt;hive.metastore.warehouse.dir&lt;/name&gt;
+        &lt;value&gt;/user/hive/warehouse&lt;/value&gt;
+    &lt;/property&gt;
+
+    &lt;property&gt;
+        &lt;name&gt;hive.metastore.local&lt;/name&gt;
+        &lt;value&gt;false&lt;/value&gt;
+    &lt;/property&gt;
+
+    &lt;property&gt;
+        &lt;name&gt;hive.metastore.uris&lt;/name&gt;
+        &lt;value&gt;thrift://test01:9083&lt;/value&gt;
+    &lt;/property&gt;
+&lt;/configuration&gt;
+</code></pre><p>这样test02上通过hive就可以访问test01上的了</p>
+<h2 id="idea上运行local的spark-sql"><a href="#idea上运行local的spark-sql" class="headerlink" title="idea上运行local的spark sql"></a>idea上运行local的spark sql</h2><p>前提：本机上的hive client可以使用, 同时我这里用了hadoop2.2版本<br>我使用的是maven 工程, pom.xml如下：</p>
+<pre><code>&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.apache.spark&lt;/groupId&gt;
+        &lt;artifactId&gt;spark-core_2.10&lt;/artifactId&gt;
+        &lt;version&gt;1.1.0&lt;/version&gt;
+
+        &lt;exclusions&gt;
+            &lt;exclusion&gt;
+            &lt;!--默认是1.0.4版本，要去掉--&gt;
+                &lt;groupId&gt;org.apache.hadoop&lt;/groupId&gt;
+                &lt;artifactId&gt;hadoop-client&lt;/artifactId&gt;
+            &lt;/exclusion&gt;
+        &lt;/exclusions&gt;
+    &lt;/dependency&gt;
+    &lt;!-- 引入和hadoop集群相同版本的--&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.apache.hadoop&lt;/groupId&gt;
+        &lt;artifactId&gt;hadoop-client&lt;/artifactId&gt;
+        &lt;version&gt;2.2.0&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.apache.spark&lt;/groupId&gt;
+        &lt;artifactId&gt;spark-mllib_2.10&lt;/artifactId&gt;
+        &lt;version&gt;1.1.0&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.apache.spark&lt;/groupId&gt;
+        &lt;artifactId&gt;spark-sql_2.10&lt;/artifactId&gt;
+        &lt;version&gt;1.1.0&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.apache.spark&lt;/groupId&gt;
+        &lt;artifactId&gt;spark-hive_2.10&lt;/artifactId&gt;
+        &lt;version&gt;1.1.0&lt;/version&gt;
+    &lt;/dependency&gt;
+&lt;/dependencies&gt;
+
+&lt;build&gt;
+    &lt;plugins&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+            &lt;artifactId&gt;maven-source-plugin&lt;/artifactId&gt;
+            &lt;version&gt;2.2.1&lt;/version&gt;
+            &lt;executions&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;attach-sources&lt;/id&gt;
+                    &lt;phase&gt;package&lt;/phase&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;jar&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+            &lt;/executions&gt;
+        &lt;/plugin&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;net.alchim31.maven&lt;/groupId&gt;
+            &lt;artifactId&gt;scala-maven-plugin&lt;/artifactId&gt;
+            &lt;version&gt;3.1.0&lt;/version&gt;
+            &lt;executions&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;compile-scala&lt;/id&gt;
+                    &lt;phase&gt;compile&lt;/phase&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;add-source&lt;/goal&gt;
+                        &lt;goal&gt;compile&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;test-compile-scala&lt;/id&gt;
+                    &lt;phase&gt;test-compile&lt;/phase&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;add-source&lt;/goal&gt;
+                        &lt;goal&gt;testCompile&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+            &lt;/executions&gt;
+        &lt;/plugin&gt;
+    &lt;/plugins&gt;
+&lt;/build&gt;
+</code></pre><p>将hive client的hive-site.xml放到resources目录下，这样就可以访问远程的hive metadata了。</p>
+<p>Test程序：</p>
+<pre><code>object Test{
+  def main(args:Array[String]): Unit = {
+    val sc = new SparkContext(&quot;local&quot;, &quot;test&quot;)
+    val hiveContext = new HiveContext(sc)
+    val rdd = hiveContext.sql(&quot;select * from test&quot;)
+    rdd.collect().foreach(println)
+  }
+}
+</code></pre><p>运行时有可能报：</p>
+<pre><code>Exception in thread &quot;main&quot; org.apache.hadoop.ipc.RemoteException: Server IPC version 9 cannot communicate with client version 4
+</code></pre><p>这是因为org.apache.spark默认使用的是hadoop-client-1.0.4, 而我的hadoop是2.2.0, 所以版本不一致，解决方法是将hadoop-client-1.0.4改成hadoop-2.2.0， 解决方法已经在上面的pom.xml中加入了。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+<div class="article-catetags">
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/spark-sql/">spark sql</a>
+</div>
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/spark-sql/">spark sql</a><a href="/tags/hive/">hive</a>
+  </div>
+
+</div>
+
+
+
+	<div class="article-share" id="share">
+	
+	<div class="share-jiathis">
+	  
+<div class="jiathis_style_24x24">
+	<a class="jiathis_button_tsina"></a>
+	<a class="jiathis_button_weixin"></a>
+	<a class="jiathis_button_renren"></a>
+	<a class="jiathis_button_qzone"></a>
+	<a class="jiathis_button_googleplus"></a>
+	<a class="jiathis_button_douban"></a>
+	<a href="http://www.jiathis.com/share" class="jiathis jiathis_txt jtico jtico_jiathis" target="_blank"></a>
+	<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript" >
+    var jiathis_config={
+    data_track_clickback:true,
+    sm:"copy,renren,cqq",
+    pic:"",
+    summary:"",
+     ralateuid:{"tsina":"2036985411"},hideMore:false}
+    
+  </script> 
+<script type="text/javascript" src="//v3.jiathis.com/code/jia.js?uid=
+1796651" charset="utf-8"></script>      
+
+	 </div>
+	
+	</div>
+
+
+</footer>
+
+   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2014/11/12/spark-shuffle重用/" title="spark stage shuffle重用">
+  <strong>上一篇：</strong><br/>
+  <span>
+  spark stage shuffle重用</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2014/09/11/spark-stage命名/"  title="spark stage命名原理">
+ <strong>下一篇：</strong><br/> 
+ <span>spark stage命名原理
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="Show Sidebar"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">Contents</strong>
+ 
+ <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#hive-0-13安装-remote-metastore"><span class="toc-number">1.</span> <span class="toc-text">hive 0.13安装 remote metastore</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#idea上运行local的spark-sql"><span class="toc-number">2.</span> <span class="toc-text">idea上运行local的spark sql</span></a></li></ol>
+ 
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="Hide Sidebar"></a></div>
+<aside class="clearfix">
+
+  
+<div class="github-card">
+<p class="asidetitle">Github Card</p>
+<div class="github-card" data-github="dataknocker" data-theme="medium"></div>
+<script type="text/javascript" src="//cdn.jsdelivr.net/github-cards/latest/widget.js" ></script>
+</div>
+
+
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">Categories</p>
+		<ul>
+		
+		  
+			<li><a href="/categories/Spark/" title="Spark">Spark<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/solr/" title="solr">solr<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/spark/" title="spark">spark<sup>8</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+		  
+		
+		</ul>
+</div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">Tags</p>
+		<ul class="clearfix">
+		
+			
+				<li><a href="/tags/spark/" title="spark">spark<sup>9</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/RDD/" title="RDD">RDD<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/shuffle/" title="shuffle">shuffle<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/standalone/" title="standalone">standalone<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/solr/" title="solr">solr<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/空间索引/" title="空间索引">空间索引<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/AppendOnlyMap/" title="AppendOnlyMap">AppendOnlyMap<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
+			
+		
+		</ul>
+</div>
+
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS</a>
+</div>
+
+  <div class="weiboshow">
+  <p class="asidetitle">Weibo</p>
+    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<section class="info">
+		<p> 进击的菜鸟 <br/>
+			专注于大数据框架、机器学习，会点前端、后台开发</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1619689670" target="_blank" class="icon-weibo" title="微博"></a>
+		
+		
+		<a href="https://github.com/dataknocker" target="_blank" class="icon-github" title="github"></a>
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		<a href="mailto:511217265@qq.com" target="_blank" class="icon-email" title="Email Me"></a>
+		
+	</div>
+			
+		
+
+		<p class="copyright">
+		Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wuchong/jacman" target="_blank" title="Jacman">Jacman</a> © 2018 
+		
+		<a href="/about" target="_blank" title="wangzejie">wangzejie</a>
+		
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.0.3.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+<script src="/js/jquery.qrcode-0.12.0.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+  
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else{
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  c.click(function(){
+    ta.css('display', 'block').addClass('fadeIn');
+  });
+  o.click(function(){
+    ta.css('display', 'none');
+  });
+  $(window).scroll(function(){
+    ta.css("top",Math.max(140,320-$(this).scrollTop()));
+  });
+});
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<!-- Analytics Begin -->
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-52840244-1', 'auto');  
+ga('send', 'pageview');
+</script>
+
+
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?37562e8d14eb29a7932c0447aea7d3c3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+
+
+<!-- Analytics End -->
+
+<!-- Totop Begin -->
+
+	<div id="totop">
+	<a title="Back to Top"><img src="/img/scrollup.png"/></a>
+	</div>
+	<script src="/js/totop.js"></script>
+
+<!-- Totop End -->
+
+<!-- MathJax Begin -->
+<!-- mathjax config similar to math.stackexchange -->
+
+
+<!-- MathJax End -->
+
+<!-- Tiny_search Begin -->
+
+<!-- Tiny_search End -->
+
+  </body>
+</html>

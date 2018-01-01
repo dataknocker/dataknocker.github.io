@@ -1,0 +1,559 @@
+
+ <!DOCTYPE HTML>
+<html >
+<head>
+  <meta charset="UTF-8">
+  
+    <title>spark相关流程解析 | DataKnocker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="wangzejie">
+    
+
+    
+    <meta name="description" content="看了spark的部分源码，画了一些流程图，不好分类，就放在一起，以后再分开吧。note:请右击图片，在新页签打开图片 spark启动流程图 各组件名称说明 master: 资源管理，分配driver到哪个Worker，分配Executor等。standalone时是设置的7077端口的那台机器, yarn模式时是yarn的resource manager. worker: 相当于slave，其作为">
+<meta name="keywords" content="spark">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark相关流程解析">
+<meta property="og:url" content="http://yoursite.com/2014/07/11/spark相关流程解析/index.html">
+<meta property="og:site_name" content="DataKnocker">
+<meta property="og:description" content="看了spark的部分源码，画了一些流程图，不好分类，就放在一起，以后再分开吧。note:请右击图片，在新页签打开图片 spark启动流程图 各组件名称说明 master: 资源管理，分配driver到哪个Worker，分配Executor等。standalone时是设置的7077端口的那台机器, yarn模式时是yarn的resource manager. worker: 相当于slave，其作为">
+<meta property="og:image" content="http://yoursite.com/img/spark/spark启动流程.jpg">
+<meta property="og:image" content="http://yoursite.com/img/spark/spark运行流程.jpg">
+<meta property="og:image" content="http://yoursite.com/img/spark/Task遍历数据流程.jpg">
+<meta property="og:updated_time" content="2014-11-11T23:58:32.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="spark相关流程解析">
+<meta name="twitter:description" content="看了spark的部分源码，画了一些流程图，不好分类，就放在一起，以后再分开吧。note:请右击图片，在新页签打开图片 spark启动流程图 各组件名称说明 master: 资源管理，分配driver到哪个Worker，分配Executor等。standalone时是设置的7077端口的那台机器, yarn模式时是yarn的resource manager. worker: 相当于slave，其作为">
+<meta name="twitter:image" content="http://yoursite.com/img/spark/spark启动流程.jpg">
+
+    
+    <link rel="alternative" href="/atom.xml" title="DataKnocker" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/img/favicon.png">
+    
+    
+    <link rel="apple-touch-icon" href="/img/jacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/jacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+  <body>
+    <header>
+      
+<div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.png" alt="DataKnocker" title="DataKnocker"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="DataKnocker">DataKnocker</a></h1>
+				<h2 class="blog-motto">learn bigdata step by step</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="Menu">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+						<li><a href="/categories">分类</a></li>
+					
+						<li><a href="/tags">标签</a></li>
+					
+						<li><a href="/about">关于我</a></li>
+					
+					<li>
+ 					
+					<form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="search" id="search" name="q" autocomplete="off" maxlength="20" placeholder="Search" />
+						<input type="hidden" name="q" value="site:yoursite.com">
+					</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+  
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2014/07/11/spark相关流程解析/" title="spark相关流程解析" itemprop="url">spark相关流程解析</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/about" title="wangzejie" target="_blank" itemprop="author">wangzejie</a>
+		
+  <p class="article-time">
+    <time datetime="2014-07-11T09:22:03.000Z" itemprop="datePublished"> Published 2014-07-11</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">Contents</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#spark启动流程图"><span class="toc-number">1.</span> <span class="toc-text">spark启动流程图</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#各组件名称说明"><span class="toc-number">1.1.</span> <span class="toc-text">各组件名称说明</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#spark任务运行流程图"><span class="toc-number">2.</span> <span class="toc-text">spark任务运行流程图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Task遍历分区数据流程"><span class="toc-number">3.</span> <span class="toc-text">Task遍历分区数据流程</span></a></li></ol>
+		
+		</div>
+		
+		<p>看了spark的部分源码，画了一些流程图，不好分类，就放在一起，以后再分开吧。<br><em>note:请右击图片，在新页签打开图片</em></p>
+<h3 id="spark启动流程图"><a href="#spark启动流程图" class="headerlink" title="spark启动流程图"></a>spark启动流程图</h3><p><img src="../../../../img/spark/spark启动流程.jpg" alt="spark启动流程图"></p>
+<h4 id="各组件名称说明"><a href="#各组件名称说明" class="headerlink" title="各组件名称说明"></a>各组件名称说明</h4><ul>
+<li>master: 资源管理，分配driver到哪个Worker，分配Executor等。standalone时是设置的7077端口的那台机器, yarn模式时是yarn的resource manager.</li>
+<li>worker: 相当于slave，其作为driver或executor的机器。standalone是注册的worker，yarn时是动态分配的nodemanager。</li>
+<li>driver: 用户写的main函数。spark-submit提交jar时，1.0版本时master会找到一台符合要求的worker(或nodemanager)作为driver，然后这台Worker创建DriverRunner对象来启动一个jvm进程来运行main函数对应的object，1.1版本则是由启动sparkSubmit的机器作为driver，SparkSubmit会通过反射机制来调用应用程序的main方法。<br>在yarn-cluster时是appmaster,yarn-client时是执行spark-submit的机器。<br>drvier负责注册application，提交task到相应的executor等，与各executor进行通信。</li>
+<li>application: 每new一个SparkContext就会产生一个application。初始化SparkContext(真实是在SchedulerBackend.start()中)时driver会向master注册application。master会为该application找到符合要求的worker，然后这些worker会创建ExecutorRunner对象来启动ExecutorBackend的jvm进程。</li>
+<li>ExecutorBackend: 具体实现是CoarseGrainedExecutorBackend。主要是创建Executor对象并且与driver进行通信来获得driver提交的任务信息给Executor执行。一个application在相应的worker上只有一个Executor。</li>
+<li>Executor: Task的真正执行者，其维护一个线程池用于跑相应的Task。</li>
+<li>Job: ActiveJob，每个action都会生成一个Job。</li>
+<li>Stage: 一个Job/action中每遇到ShuffleDependency就会有一个stage(ShuffleMapStage)以及finalStage(ResultStage，每个action都会有一个finalStage)。</li>
+<li>Task: 每个分区Partition对应一个task。</li>
+</ul>
+<hr>
+<h3 id="spark任务运行流程图"><a href="#spark任务运行流程图" class="headerlink" title="spark任务运行流程图"></a>spark任务运行流程图</h3><p><img src="../../../../img/spark/spark运行流程.jpg" alt="spark运行流程图"></p>
+<hr>
+<h3 id="Task遍历分区数据流程"><a href="#Task遍历分区数据流程" class="headerlink" title="Task遍历分区数据流程"></a>Task遍历分区数据流程</h3><p><img src="../../../../img/spark/Task遍历数据流程.jpg" alt="Task遍历分区数据流程"></p>
+<p><em>用公司wiki画的，导出来字体有些问题，先将就看吧.上图左边未出来的部分是firstParent</em></p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+<div class="article-catetags">
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/spark/">spark</a>
+</div>
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/spark/">spark</a>
+  </div>
+
+</div>
+
+
+
+	<div class="article-share" id="share">
+	
+	<div class="share-jiathis">
+	  
+<div class="jiathis_style_24x24">
+	<a class="jiathis_button_tsina"></a>
+	<a class="jiathis_button_weixin"></a>
+	<a class="jiathis_button_renren"></a>
+	<a class="jiathis_button_qzone"></a>
+	<a class="jiathis_button_googleplus"></a>
+	<a class="jiathis_button_douban"></a>
+	<a href="http://www.jiathis.com/share" class="jiathis jiathis_txt jtico jtico_jiathis" target="_blank"></a>
+	<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript" >
+    var jiathis_config={
+    data_track_clickback:true,
+    sm:"copy,renren,cqq",
+    pic:"",
+    summary:"",
+     ralateuid:{"tsina":"2036985411"},hideMore:false}
+    
+  </script> 
+<script type="text/javascript" src="//v3.jiathis.com/code/jia.js?uid=
+1796651" charset="utf-8"></script>      
+
+	 </div>
+	
+	</div>
+
+
+</footer>
+
+   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2014/07/20/RDD各操作详解/" title="RDD操作详解">
+  <strong>上一篇：</strong><br/>
+  <span>
+  RDD操作详解</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2014/04/11/solr空间索引原理及源码分析/"  title="solr空间索引原理及源码分析">
+ <strong>下一篇：</strong><br/> 
+ <span>solr空间索引原理及源码分析
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="Show Sidebar"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">Contents</strong>
+ 
+ <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#spark启动流程图"><span class="toc-number">1.</span> <span class="toc-text">spark启动流程图</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#各组件名称说明"><span class="toc-number">1.1.</span> <span class="toc-text">各组件名称说明</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#spark任务运行流程图"><span class="toc-number">2.</span> <span class="toc-text">spark任务运行流程图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Task遍历分区数据流程"><span class="toc-number">3.</span> <span class="toc-text">Task遍历分区数据流程</span></a></li></ol>
+ 
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="Hide Sidebar"></a></div>
+<aside class="clearfix">
+
+  
+<div class="github-card">
+<p class="asidetitle">Github Card</p>
+<div class="github-card" data-github="dataknocker" data-theme="medium"></div>
+<script type="text/javascript" src="//cdn.jsdelivr.net/github-cards/latest/widget.js" ></script>
+</div>
+
+
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">Categories</p>
+		<ul>
+		
+		  
+			<li><a href="/categories/Spark/" title="Spark">Spark<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/solr/" title="solr">solr<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/spark/" title="spark">spark<sup>8</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+		  
+		
+		</ul>
+</div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">Tags</p>
+		<ul class="clearfix">
+		
+			
+				<li><a href="/tags/spark/" title="spark">spark<sup>9</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/RDD/" title="RDD">RDD<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/shuffle/" title="shuffle">shuffle<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/standalone/" title="standalone">standalone<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/solr/" title="solr">solr<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/空间索引/" title="空间索引">空间索引<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/AppendOnlyMap/" title="AppendOnlyMap">AppendOnlyMap<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
+			
+		
+		</ul>
+</div>
+
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS</a>
+</div>
+
+  <div class="weiboshow">
+  <p class="asidetitle">Weibo</p>
+    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<section class="info">
+		<p> 进击的菜鸟 <br/>
+			专注于大数据框架、机器学习，会点前端、后台开发</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1619689670" target="_blank" class="icon-weibo" title="微博"></a>
+		
+		
+		<a href="https://github.com/dataknocker" target="_blank" class="icon-github" title="github"></a>
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		<a href="mailto:511217265@qq.com" target="_blank" class="icon-email" title="Email Me"></a>
+		
+	</div>
+			
+		
+
+		<p class="copyright">
+		Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wuchong/jacman" target="_blank" title="Jacman">Jacman</a> © 2018 
+		
+		<a href="/about" target="_blank" title="wangzejie">wangzejie</a>
+		
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.0.3.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+<script src="/js/jquery.qrcode-0.12.0.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+  
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else{
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  c.click(function(){
+    ta.css('display', 'block').addClass('fadeIn');
+  });
+  o.click(function(){
+    ta.css('display', 'none');
+  });
+  $(window).scroll(function(){
+    ta.css("top",Math.max(140,320-$(this).scrollTop()));
+  });
+});
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<!-- Analytics Begin -->
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-52840244-1', 'auto');  
+ga('send', 'pageview');
+</script>
+
+
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?37562e8d14eb29a7932c0447aea7d3c3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+
+
+<!-- Analytics End -->
+
+<!-- Totop Begin -->
+
+	<div id="totop">
+	<a title="Back to Top"><img src="/img/scrollup.png"/></a>
+	</div>
+	<script src="/js/totop.js"></script>
+
+<!-- Totop End -->
+
+<!-- MathJax Begin -->
+<!-- mathjax config similar to math.stackexchange -->
+
+
+<!-- MathJax End -->
+
+<!-- Tiny_search Begin -->
+
+<!-- Tiny_search End -->
+
+  </body>
+</html>

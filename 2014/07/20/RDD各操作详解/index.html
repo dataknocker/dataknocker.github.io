@@ -1,0 +1,671 @@
+
+ <!DOCTYPE HTML>
+<html >
+<head>
+  <meta charset="UTF-8">
+  
+    <title>RDD操作详解 | DataKnocker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="wangzejie">
+    
+
+    
+    <meta name="description" content="rdd最主要方法 getPreferredLocations: 本地性相关(以后再详细研究) dependencies/getDependencies: 判断是否有ShuffleMapTask、获得firstParent partitions/getPartitions: 决定Task数，每个partition产生一个Task。源头一般是HadoopRDD中的hadoop的InputFormat.">
+<meta name="keywords" content="spark,RDD">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RDD操作详解">
+<meta property="og:url" content="http://yoursite.com/2014/07/20/RDD各操作详解/index.html">
+<meta property="og:site_name" content="DataKnocker">
+<meta property="og:description" content="rdd最主要方法 getPreferredLocations: 本地性相关(以后再详细研究) dependencies/getDependencies: 判断是否有ShuffleMapTask、获得firstParent partitions/getPartitions: 决定Task数，每个partition产生一个Task。源头一般是HadoopRDD中的hadoop的InputFormat.">
+<meta property="og:image" content="http://yoursite.com/img/spark/RDD操作举例.svg">
+<meta property="og:image" content="http://yoursite.com/img/spark/runjob.svg">
+<meta property="og:updated_time" content="2014-09-26T00:41:06.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="RDD操作详解">
+<meta name="twitter:description" content="rdd最主要方法 getPreferredLocations: 本地性相关(以后再详细研究) dependencies/getDependencies: 判断是否有ShuffleMapTask、获得firstParent partitions/getPartitions: 决定Task数，每个partition产生一个Task。源头一般是HadoopRDD中的hadoop的InputFormat.">
+<meta name="twitter:image" content="http://yoursite.com/img/spark/RDD操作举例.svg">
+
+    
+    <link rel="alternative" href="/atom.xml" title="DataKnocker" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/img/favicon.png">
+    
+    
+    <link rel="apple-touch-icon" href="/img/jacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/jacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+  <body>
+    <header>
+      
+<div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.png" alt="DataKnocker" title="DataKnocker"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="DataKnocker">DataKnocker</a></h1>
+				<h2 class="blog-motto">learn bigdata step by step</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="Menu">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+						<li><a href="/categories">分类</a></li>
+					
+						<li><a href="/tags">标签</a></li>
+					
+						<li><a href="/about">关于我</a></li>
+					
+					<li>
+ 					
+					<form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="search" id="search" name="q" autocomplete="off" maxlength="20" placeholder="Search" />
+						<input type="hidden" name="q" value="site:yoursite.com">
+					</form>
+					
+					</li>
+				</ul>
+			</nav>			
+</div>
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+  
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2014/07/20/RDD各操作详解/" title="RDD操作详解" itemprop="url">RDD操作详解</a>
+  </h1>
+  <p class="article-author">By
+       
+		<a href="/about" title="wangzejie" target="_blank" itemprop="author">wangzejie</a>
+		
+  <p class="article-time">
+    <time datetime="2014-07-20T05:17:04.000Z" itemprop="datePublished"> Published 2014-07-20</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">Contents</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#rdd最主要方法"><span class="toc-number">1.</span> <span class="toc-text">rdd最主要方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#实例"><span class="toc-number">2.</span> <span class="toc-text">实例</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Transform"><span class="toc-number">3.</span> <span class="toc-text">Transform</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#map"><span class="toc-number">3.1.</span> <span class="toc-text">map</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#filter"><span class="toc-number">3.2.</span> <span class="toc-text">filter</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#flatMap"><span class="toc-number">3.3.</span> <span class="toc-text">flatMap</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#distinct"><span class="toc-number">3.4.</span> <span class="toc-text">distinct</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#repartition和coalece"><span class="toc-number">3.5.</span> <span class="toc-text">repartition和coalece</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#sample"><span class="toc-number">3.6.</span> <span class="toc-text">sample</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#intersection"><span class="toc-number">3.7.</span> <span class="toc-text">intersection</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#subtract"><span class="toc-number">3.8.</span> <span class="toc-text">subtract</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#union-以及"><span class="toc-number">3.9.</span> <span class="toc-text">union  以及 ++</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#cartesian"><span class="toc-number">3.10.</span> <span class="toc-text">cartesian</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#groupBy-f"><span class="toc-number">3.11.</span> <span class="toc-text">groupBy(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#pipe"><span class="toc-number">3.12.</span> <span class="toc-text">pipe</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#mapPartitions-f"><span class="toc-number">3.13.</span> <span class="toc-text">mapPartitions(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#zip"><span class="toc-number">3.14.</span> <span class="toc-text">zip</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#zipPartitions"><span class="toc-number">3.15.</span> <span class="toc-text">zipPartitions</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Action"><span class="toc-number">4.</span> <span class="toc-text">Action</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#SparkContext-runjob"><span class="toc-number">4.1.</span> <span class="toc-text">SparkContext.runjob</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#foreach-f"><span class="toc-number">4.2.</span> <span class="toc-text">foreach(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#foreachPartition-f"><span class="toc-number">4.3.</span> <span class="toc-text">foreachPartition(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#collect、toArray"><span class="toc-number">4.4.</span> <span class="toc-text">collect、toArray</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#reduce"><span class="toc-number">4.5.</span> <span class="toc-text">reduce</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#fold"><span class="toc-number">4.6.</span> <span class="toc-text">fold</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#aggregate"><span class="toc-number">4.7.</span> <span class="toc-text">aggregate</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#count"><span class="toc-number">4.8.</span> <span class="toc-text">count</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#countApprox"><span class="toc-number">4.9.</span> <span class="toc-text">countApprox</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#countByValue"><span class="toc-number">4.10.</span> <span class="toc-text">countByValue</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#take-num"><span class="toc-number">4.11.</span> <span class="toc-text">take(num)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#first"><span class="toc-number">4.12.</span> <span class="toc-text">first</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#top"><span class="toc-number">4.13.</span> <span class="toc-text">top</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#takeOrdered"><span class="toc-number">4.14.</span> <span class="toc-text">takeOrdered</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#keyBy-f"><span class="toc-number">4.15.</span> <span class="toc-text">keyBy(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#saveAsTextFile"><span class="toc-number">4.16.</span> <span class="toc-text">saveAsTextFile</span></a></li></ol></li></ol>
+		
+		</div>
+		
+		<h2 id="rdd最主要方法"><a href="#rdd最主要方法" class="headerlink" title="rdd最主要方法"></a>rdd最主要方法</h2><ul>
+<li>getPreferredLocations: 本地性相关(以后再详细研究)</li>
+<li>dependencies/getDependencies: 判断是否有ShuffleMapTask、获得firstParent</li>
+<li>partitions/getPartitions: 决定Task数，每个partition产生一个Task。源头一般是HadoopRDD中的hadoop的InputFormat.getSplits()或者是shuffle时设置的分区(此时数据来源是shuffle reduce阶段的shuffleFetcher获得的数据)。每个任务中都是通过获得相应的partition进而不断向前查找得到源头的分区进行相应的数据操作。</li>
+<li>partitioner: 默认是空的。表明该RDD是怎样进行分区的。如shuffle的reduce端的RDD的partitioner就是shuffle时设置的partitioner，默认是HashPartitioner。</li>
+<li>iterator(): 各Task对RDD操作时会调用此方法，返回数据集的Iterator。当在缓存中时直接返回，不在缓存中时则调用 compute方法并决定是否要将结果放到缓存中。</li>
+<li>compute(): 主要用于生成Iterator，主要实现hasNext与next方法。主要有三种生成Iterator形式：<br> 1、直接封装父RDD.iterator()得到的Iterator，即hasNext或next方法中会调用父RDD的Iterator的hasNext、next进行相应处理。如MappedRDD/FilteredRDD等<br> 2、f(firstParent.iterator()): 对父RDD的Iterator进行自定义处理, 即f中会使用Iterator的hasNext和next方法即对整个分区进行操作。如MapWithPartition等。其实2和1是相同的，只是遍历Iterator(调用hasNext和next)逻辑时2是外部传来的f，而1是由scala.collection.Iterator实现的各个方法。所以我们可以使用2的方式灵活的对分区数据进行转换，如转换成Map对value进行合并等。<br> 3、shuffle: 此时该RDD是shuffle reduce的角色。compute主要通过调用shuffleFetcher获得shuffle map阶段的数据再进行其他处理。如ShuffleRDD等。</li>
+</ul>
+<h2 id="实例"><a href="#实例" class="headerlink" title="实例"></a>实例</h2><p><img src="../../../../img/spark/RDD操作举例.svg" alt="wordcount操作流程示例"><br>这里先用WordCount实例来过下整个流程。<br>sc.textFile会产生HadoopRDD以及MappedRDD(hdfs上得到的是(行号，line)，我这只需要line，故需要map转换一下)；reduceByKey会产生MapPartitionRDD、ShuffleRDD、MapPartitionRDD。<br>1、wordcount的代码会在driver上按顺序执行<br>2、red.saveAsTextFile为第一个action，会调用SparkContext.runJob, 然后触发DAGScheduler生成stages。<br>3、redRDD作为finalStage,记为stage1,其shuffleDep为None。submitStage(finalStage)会去寻找其父stages，即根据RDD间的依赖去寻找ShuffleDependency, 本例是在reduceByKey中的ShuffleRDD会对其父RDD MapPartitionsRDD进行ShuffleDependency，所以该MapPartitionsRDD处会生成一个Stage，记为stage2,其shuffleDep为None,即isShuffleMap=true。继续往前找都没有ShuffleDependency，所以最后就stage2和stage1两个stage，且stage1依赖于stage2，需要stage2完成后才能跑stage1。这里会先submitStage(stage2)。<br>4、由于stage2 isShuffleMap=true，则生成ShuffleMapTask, MapPartitionsRDD的partitions数决定了有多少个ShuffleMapTask,然后组装成TaskSet发给TaskScheduler再提交到相应的Executor上进行执行。为什么叫ShuffleMapTask，而不叫ShuffleTask应该是ShuffleMapTask只完成了shuffle的map阶段。<br>5、Executor上会有线程池来跑ShuffleMapTask，主要是运行ShuffleMapTask中的runTask方法。<br>   a、该方法中先得到partitioner的分区数即reduce的分区数(<em>在调用shuffle相关RDD操作时会指定,一般由defaultPartitioner方法指定</em>)。<br>   b、调用rdd即MapPartitionsRDD的iterator()方法，iterator方法的主体是compute()并返回Iterator对象, 其又会去调用firstParent.iterator()，即MappedRDD的iterator()，MappedRDD的compute()方法又会调用其firstParent.iterator()，不断向前调用直到数据源头HadoopRDD。在compute不断向前调用中各RDD返回的Iterator对象都是对前一个RDD返回的Iterator进行封装。最底层的Iterator即是HadoopRDD的compute形成的Iterator,该Iterator的next方法是通过HadoopPartition(这里的HadoopPartition是将iterator中的split参数进行转换得到)得到InputSplit，继而通过RecordReader来获得hdfs上的数据。<br>   c、遍历得到的Iterator，将key按照partitioner.getPartition(key)得到所在的bucket(bucket是文件，每个reduce一个bucket(关于bucket以后有更详细的说明，这里先略过), 并将该kv对写到得到的bucket中。全部写完后即完成了shuffle的map阶段，此时ShuffleMapTask也就成功完成。<br>6、所有的ShuffleMapTask都完成后，stage2就结束了，这时开始提交stage1。由于stage1 isShuffleMap=false，故会产生ResultTask, task数为ShuffleRDD的分区数(reduce的分区数)。提交到各Executor执行。<br>7、Executor上的线程池来执行ResultTask,主要是ResultTask的runTask方法。<br>   a、调用rdd即MapPartitionsRDD的iterator/compute方法，其又会去调用ShuffleRDD的iterator/compute方法。<br>   b、ShuffleRDD的compute方法会使用ShuffleFetcher从相应worker上指定的shuffler map阶段产生的bucket(根据shuffledId以及分区号获得对应的bucket)获得对应的Iterator。<br>   c、遍历得到的Iterator, 调用hasNext/next会使ShuffleFetcher真正开始从各bucket获取数据, 每获得一个kv就进行相应操作，这里是写到hdfs上。</p>
+<p><em>note:产生shuffle形为的RDD如ShuffleRDD，其父RDD会作为shuffle的map端的输出源， 而ShuffleRDD本身是作为shuffle的reduce端</em><br>rdd.iterator()方法是其实没有对数据进行操作，只是不断创建新的Iterator。Task再得到Iterator之后才开始遍历数据。当然如果rdd.persist()后，rdd.iterator()会将结果取出放到缓存中。</p>
+<h2 id="Transform"><a href="#Transform" class="headerlink" title="Transform"></a>Transform</h2><h3 id="map"><a href="#map" class="headerlink" title="map"></a>map</h3><p>将元素转成其他类型<br>RDD:MappedRDD<br>compute:调用Iterator.map()方法，hasNext方法为self.hasNext,next方法中执行f(元素)从而实现类型转换<br>partitions:parent.partitions<br>像map等pipline的主要是对父RDD的Iterator的hasNext和next进行加工，如</p>
+<pre><code>def map[B](f: A =&gt; B): Iterator[B] = new AbstractIterator[B] {
+    def hasNext = self.hasNext
+    def next() = f(self.next())
+}
+</code></pre><h3 id="filter"><a href="#filter" class="headerlink" title="filter"></a>filter</h3><p>过滤不满足f的元素<br>RDD:FilteredRDD<br>compute:调用Iterator.filter()方法，hasNext中会一直调用f，直到f输出为true, 同时生成hd=self.next,  next方法中直接返回hd<br>partitions:parent.partitions</p>
+<h3 id="flatMap"><a href="#flatMap" class="headerlink" title="flatMap"></a>flatMap</h3><p>通过f后各元素都转成Iterator（如split方法)， 然后遍历所有各Seq元素<br>RDD:FlatMapRDD<br>compute: 调用Iterator.flatMap()方法，调用f后各元素转成Iterator,调用转化后的各元素toIterator方法，cur = f(self.next).toIterator， hasNext为cur.hasNext, cur遍历完后重新对cur赋值下个元素，next方法为cur.next<br>partitions:parent.partitions</p>
+<h3 id="distinct"><a href="#distinct" class="headerlink" title="distinct"></a>distinct</h3><p>将元素变成(x,null)再reduceByKey((x,y)=&gt;x), 所以是按整个元素进行distinct，并不是按key</p>
+<h3 id="repartition和coalece"><a href="#repartition和coalece" class="headerlink" title="repartition和coalece"></a>repartition和coalece</h3><p>重新分区，有待研究。用于filter后很多分区数据无效进行分区重规划</p>
+<h3 id="sample"><a href="#sample" class="headerlink" title="sample"></a>sample</h3><p>元素取样,fraction表示rand &gt; fraction的都被选中<br>RDD:SampledRDD, 这里只研究不放回抽样，放回抽样有待研究<br>partitions：生成SampledRDDPartition，只比一般的Partition多了个seed参数<br>compute: 调用Iterator.filter()，f为各partition的seed生成的随机数&gt;fraction</p>
+<h3 id="intersection"><a href="#intersection" class="headerlink" title="intersection"></a>intersection</h3><p>rdd1.subtract(rdd2): 获得rdd1和rdd2共有的值。<br>先map(x=&gt;(x,null))变成kv型然后使用cogroup(具体实现见<a href="http://dataknocker.github.io/2014/07/22/spark%20rdd%20keyvalue%E6%93%8D%E4%BD%9C/#reduceByKey" target="_blank" rel="noopener">spark RDD keyvalue操作</a>) 得到按key聚合的值对，然后过滤掉其中为空的记录并输出key。</p>
+<pre><code>def intersection(other: RDD[T]): RDD[T] = {
+    this.map(v =&gt; (v, null)).cogroup(other.map(v =&gt; (v, null)))
+        .filter { case (_, (leftGroup, rightGroup)) =&gt; leftGroup.nonEmpty &amp;&amp; rightGroup.nonEmpty }
+        .keys
+}
+</code></pre><p>这里感觉不应该使用cogroup。而应该要实现和SubtractedRDD类似的RDD，即将rdd1放到HashMap后，再遍历rdd2的kv，对Map中对应的key的value进行合并或者打一定的标志，等遍历完后再将有打标志的记录输出即可；或者再创建一个HashMap,遍历rdd2的kv时将Map中对应的key-value移到新HashMap中，最后新HashMap即是最后的结果。<br>不过要是实现SubtractedRDD的话，就是要返回rdd1与rdd2有共同key的rdd1的kvpairs，感觉有些怪异。。。</p>
+<h3 id="subtract"><a href="#subtract" class="headerlink" title="subtract"></a>subtract</h3><p>rdd1.subtract(rdd2): 去掉rdd1中与rdd2相同的值。<br>先map(x=&gt;(x,null))变成kv型然后使用substractByKey,即SubtractedRDD(具体实现见<a href="http://dataknocker.github.io/2014/07/22/spark%20rdd%20keyvalue%E6%93%8D%E4%BD%9C/#reduceByKey" target="_blank" rel="noopener">spark RDD keyvalue操作</a>) 得到去掉rdd2 key的rdd1的结果然后再输出key就是最后的结果。</p>
+<h3 id="union-以及"><a href="#union-以及" class="headerlink" title="union  以及 ++"></a>union  以及 ++</h3><p>RDD:UnionRDD<br>partitions: 生成rdd1.partitions.size + rdd2.partitions.size 个UnionPartition<br>compute: 通过UnionPartition得到对应的rdd的partitions以及splitIndex从而得到真正的split，调用rdd.iterator(split)<br>dependencies: RangeDependency, 依赖数为rdd的个数，每个Dependency包含了对应的rdd以及该rdd各partition在UnionRDD的partition的位置(按rdd顺序)</p>
+<h3 id="cartesian"><a href="#cartesian" class="headerlink" title="cartesian"></a>cartesian</h3><p>迪卡尔积<br>RDD:CartesianRDD<br>partitions: rdd1.partitions.size * rdd2.partitions.size 个CartesianPartition，包含了rdd1对应的split s1和rdd2对应的split s2， for (s1 &lt;- rdd1.partitions; s2 &lt;- rdd2.partitions)<br>compute: 每个CartesianPartition得到对应的s1和s2, 遍历 s1和s2中的元素得到(x,y)<br>dependencies: 有两个NarrowDependency， 其中rdd1的NarrowDependency.getParent(id)为id/numPartitionsInRdd2, rdd2的NarrowDependency.getParent(id)为id % numPartitionsInRdd2</p>
+<h3 id="groupBy-f"><a href="#groupBy-f" class="headerlink" title="groupBy(f)"></a>groupBy(f)</h3><p>对各元素执行f后，对结果进行reduceByKey,  即(f(t), t).reduceByKey() ，得到的结果是(K,Seq[T]), f将T=&gt;K,  reduceByKey将原元素T组装成Seq</p>
+<h3 id="pipe"><a href="#pipe" class="headerlink" title="pipe"></a>pipe</h3><p>RDD各元素是command,利用ProcessBuilder进行执行<br>RDD:PipedRDD</p>
+<h3 id="mapPartitions-f"><a href="#mapPartitions-f" class="headerlink" title="mapPartitions(f)"></a>mapPartitions(f)</h3><p>RDD:MapPartitionsRDD<br>compute: func(context, split.index, firstParent[T].iterator(split, context)), func是func = (context: TaskContext, index: Int, iter: Iterator[T]) =&gt; f(iter)，即由用户自定义的f来操作分区<br>map是针对的是partition中各个元素，即由系统自动实现遍历parition,  mapPartitions则是f操作的是整个partition，即用户在f中自行调用Iterator的hasNext和next进行更灵活的操作，像MappedRDD等RDD其实也有f，只是该f被写在Iterator对象中，我们没法自定义。</p>
+<p>mapPartitionsWithIndex/TaskContext等都是类似的</p>
+<h3 id="zip"><a href="#zip" class="headerlink" title="zip"></a>zip</h3><p>将rdd1和rdd2的元素依次组成(x,y), x是rdd1的元素,y是rdd2的元素，x和y在rdd1和rdd2的顺序是一样的，即(x1,y1),(x2,y2). 要求rdd1和rdd2的partition数要一样, partition中元素个数如果多于另一个，则忽略多出部分。<br>RDD:ZippedRDD<br>compute:由ZippedPartition得到对应的partition1和partition2, 调用Iterator.zip方法进行partition元素的zip，也是按对应顺序进行zip<br>partitions: 和rdd1.partitions.size个数一样的ZippedPartition，包含了处于相同位置的rdd1 partition1和rdd2 partition2</p>
+<h3 id="zipPartitions"><a href="#zipPartitions" class="headerlink" title="zipPartitions"></a>zipPartitions</h3><p>zip与zipPartitions的区别和map与mapPartitions的区别类似<br>RDD:ZippedPartitionsRDD2<br>compute:会调用f(rdd1.iterator(partitions(0), context), rdd2.iterator(partitions(1), context))，即f操作的是partition1和partition2产生的Iterator1和Iterator2</p>
+<h2 id="Action"><a href="#Action" class="headerlink" title="Action"></a>Action</h2><p>action主要调用SparkContext.runJob方法。</p>
+<h3 id="SparkContext-runjob"><a href="#SparkContext-runjob" class="headerlink" title="SparkContext.runjob"></a>SparkContext.runjob</h3><p>runJob的工作流程是在各worker上计算执行各Task,算完的结果会放到CompletionEvent对象中，在任务完成时会请求DAGSchedule的complete相关方法，最终由会调用JobWaiter的taskSucceeded(index: Int, result: Any)，该方法中会调用resultHandler(index, result.asInstanceOf[T])对结果进行聚合(该操作在driver上)。 taskSucceeded中会判断当任务全部完成时notifyAll，释放锁，从而driver可以进行对resultHandler产生的最终结果的进行操作</p>
+<p>runJob通用形式是</p>
+<pre><code>def runJob[T, U: ClassTag](rdd: RDD[T], func: (TaskContext, Iterator[T]) =&gt; U, partitions: Seq[Int], allowLocal: Boolean, resultHandler: (Int, U) =&gt; Unit)
+</code></pre><p><img src="../../../../img/spark/runjob.svg" alt="runJob流程示意"><br>func是在各worker上执行各task时执行的方法,该方法主要是获得RDD的Iterator，然后通过hasNext/next来遍历Iterator中的各元素。<br>resultHandler是在driver上执行(DAGScheduler的JobWatier在监听到Task完成时执行)。参数第一个参数是partitionId，第二个是该分区运行的结果。该方法一般是对各分区的结果进行汇总。每个Task完成时都会调用该方法将结果进行汇总。</p>
+<p>像reduce/fold/aggreate会使用通用的runJob,即设置自己的resultHandler，而其他如count等会使用默认的resultHandler,如</p>
+<pre><code>def runJob[T, U: ClassTag](
+    rdd: RDD[T],
+    func: (TaskContext, Iterator[T]) =&gt; U,
+    partitions: Seq[Int],
+    allowLocal: Boolean
+    ): Array[U] = {
+  val results = new Array[U](partitions.size)
+  runJob[T, U](rdd, func, partitions, allowLocal, (index, res) =&gt; results(index) = res)
+  results
+}
+</code></pre><p>即采用系统自己实现的resultHandler： (index, res) =&gt; results(index) = res。  将各task的结果放到results中。然后再对results进行操作，如count就是results.sum</p>
+<h3 id="foreach-f"><a href="#foreach-f" class="headerlink" title="foreach(f)"></a>foreach(f)</h3><p>调用Iterator.foreach(f), 其中调用Iterator的hasNext和next来遍历各元素，并调用f(next())</p>
+<h3 id="foreachPartition-f"><a href="#foreachPartition-f" class="headerlink" title="foreachPartition(f)"></a>foreachPartition(f)</h3><p>f操作的是整个分区，即在用户的f中自己调用Iterator遍历方法进行相关操作</p>
+<h3 id="collect、toArray"><a href="#collect、toArray" class="headerlink" title="collect、toArray"></a>collect、toArray</h3><p>调用Iterator.toArray将各分区变成Array形式，再Array.concat(results: <em>*) 来将各Array合并成一个Array<br>使用了默认的resultHandler，将各task上算完的结果放到results中，并执行Array.concat(results: </em>*)</p>
+<pre><code>def collect(): Array[T] = {
+    val results = sc.runJob(this, (iter: Iterator[T]) =&gt; iter.toArray)
+    Array.concat(results: _*)
+}
+</code></pre><p><em>note:该操作如果数据量很大时要尽量避免使用，或者要么是driver OOM或者akka传输的数据量大于其最大值而报错。</em></p>
+<h3 id="reduce"><a href="#reduce" class="headerlink" title="reduce"></a>reduce</h3><p>将各元素从左到右按f进行合并</p>
+<pre><code>def reduce(f: (T, T) =&gt; T): T = {
+    val cleanF = sc.clean(f)
+    val reducePartition: Iterator[T] =&gt; Option[T] = iter =&gt; {
+      if (iter.hasNext) {
+        Some(iter.reduceLeft(cleanF))
+      } else {
+        None
+      }
+    }
+    var jobResult: Option[T] = None
+    val mergeResult = (index: Int, taskResult: Option[T]) =&gt; {
+      if (taskResult.isDefined) {
+        jobResult = jobResult match {
+          case Some(value) =&gt; Some(f(value, taskResult.get))
+          case None =&gt; taskResult
+        }
+      }
+    }
+    sc.runJob(this, reducePartition, mergeResult)
+    // Get the final result out of our Option, or throw an exception if the RDD was empty
+    jobResult.getOrElse(throw new UnsupportedOperationException(&quot;empty collection&quot;))
+}
+</code></pre><p>参数：<br>f(T,T)=&gt;T： 将两个元素进行合并。 f的第一个参数是resultHandler(index,res)的res,即是以第一个完成的task的结果作为f执行的第一个点。<br>reducePartition方法 (在SparkContext的runJob中是processPartition)用于在各worker上对其分配的Partition的数据进行计算reduceLeft从左到右计算。<br>mergeResult方法(在SparkContext的runJob中是resultHandler)。DAGSchedule的JobWaiter在任务完成时会调用该方法，用于将CompletionEvent中存放的结果进行f操作(每个task一完成就会调用JobWaiter的taskSucceeded从而调用resultHandler)。所以最后结果的合并是在driver上进行操作。最终结果是对闭合变量进行相应操作。</p>
+<h3 id="fold"><a href="#fold" class="headerlink" title="fold"></a>fold</h3><p>和reduce差不多，也是各worker分别计算，然后汇总在driver上计算，不同点是 fold(zeroValue: T)(op: (T, T) =&gt; T)。 会调用TraversableOnce的foldLeft(z)(op)。<br>zeroValue和下面的aggregate用法一样都是为了节省内存开销。</p>
+<h3 id="aggregate"><a href="#aggregate" class="headerlink" title="aggregate"></a>aggregate</h3><pre><code>def aggregate[U: ClassTag](zeroValue: U)(seqOp: (U, T) =&gt; U, combOp: (U, U) =&gt; U): U = {
+    // Clone the zero value since we will also be serializing it as part of tasks
+    var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
+    val cleanSeqOp = sc.clean(seqOp)
+    val cleanCombOp = sc.clean(combOp)
+    val aggregatePartition = (it: Iterator[T]) =&gt; it.aggregate(zeroValue)(cleanSeqOp, cleanCombOp)
+    val mergeResult = (index: Int, taskResult: U) =&gt; jobResult = combOp(jobResult, taskResult)
+    sc.runJob(this, aggregatePartition, mergeResult)
+    jobResult
+}
+</code></pre><p>TraversableOnce中的aggregate中的foldLeft代码：</p>
+<pre><code>def foldLeft[B](z: B)(op: (B, A) =&gt; B): B = {
+    var result = z 
+    this.seq foreach (x =&gt; result = op(result, x))
+    result
+}
+</code></pre><p>和fold差不多，也会调用会调用TraversableOnce的foldLeft(z)(op)。不同点是foldLeft的op是(B, A) =&gt; B，。而fold方法都是同类型,op是(A1,A1)=&gt;A1。<br>zeroValue的作用是在各task中，zeroValue将作为seqOp的第一个参数，然后将第二个参数不断合并到第一个参数，即合并到zeroValue中。也就是在同个task中使用的都是同一个U类型的zeroValue对象，对于zeroValue是集合对象的，可以节省内存开销。<br>aggregate实例：</p>
+<pre><code>val zeroCombiner = mutable.Map.empty[Int, (Int, DoubleMatrix)]
+val aggregated = data.aggregate(zeroCombiner)({ (combiner, point) =&gt; combiner += point.k -&gt; point.v}, {XXX})  
+//zeroCombiner会作为seqOp的第一个参数，不断将point的相关属性合并到combiner即zeroCombiner中并返回combiner作为下一次seqOp操作的第一个参数。
+</code></pre><p>zero的另一个例子：</p>
+<pre><code>val z = sc.parallelize(List(&quot;a&quot;,&quot;b&quot;,&quot;c&quot;,&quot;d&quot;,&quot;e&quot;,&quot;f&quot;),2)
+z.aggregate(&quot;&quot;)(_ + _, _+_)
+res115: String = abcdef
+
+z.aggregate(&quot;x&quot;)(_ + _, _+_)
+res116: String = xxdefxabc
+</code></pre><h3 id="count"><a href="#count" class="headerlink" title="count"></a>count</h3><p>rdd的元素数。 各task计算各自分区的记录数，结果后会放到results中，然后调用results.sum求得总和</p>
+<h3 id="countApprox"><a href="#countApprox" class="headerlink" title="countApprox"></a>countApprox</h3><p>待研究。和count相似，但有个timeout，即在规定时间内返回结果，结果并不一定是总数。</p>
+<h3 id="countByValue"><a href="#countByValue" class="headerlink" title="countByValue"></a>countByValue</h3><p>计算各元素出现的次数。<br>利用mapPartitions先对将各partition变成 Map(v-&gt;次数)的类型，然后调用reduce(mergeMaps), mergeMaps(m1,m2), 将m2的(v-&gt;次数)合并到m1中，遇到相同的v时将次数相加</p>
+<h3 id="take-num"><a href="#take-num" class="headerlink" title="take(num)"></a>take(num)</h3><p>取出RDD中的前num个元素。<br>算法思路：第一次取第一个partition, 看第一个partition的元素数目来决定接下来要查几个partition.具体：<br>先取第一个partition, 得到一个Iterator，然后res.foreach(buf ++= _.take(num - buf.size))，从第一个分区取出需要数目的元素存到buf中。如果数据不够，则</p>
+<ul>
+<li>buf为空即第一个partition取出的数据为空，如filter完后某个partition为空。此时会查找剩下所有的partition。(该分支只在第一个partition分析完才发生)</li>
+<li><p>buf不空，则这轮要查找的partition数为：</p>
+<p>  numPartsToTry = (1.5 <em> num </em> partsScanned / buf.size).toInt<br>  //partsScanned是已经查询的分区数<br>  //理想的情况是得到第一个分区的数目，然后 num / buf.size可以得到总共需要多少分区, 1.5倍是过高估计。  乘以partsScanned具体原因不明白，应该是第二轮如果还没取到，则再加强。<br>不断重复直到buf.size==num</p>
+</li>
+</ul>
+<h3 id="first"><a href="#first" class="headerlink" title="first"></a>first</h3><p>task(1)</p>
+<h3 id="top"><a href="#top" class="headerlink" title="top"></a>top</h3><p>top(num: Int)(implicit ord: Ordering[T])<br>按rdd各元素的升/降 来获得前n个元素<br>原理：<br>1、利用mapPartitions(f)将各分区的数据添加到优先队列中，队列大小为num  (new BoundedPriorityQueue<a href="num">T</a>)。即完成将一个分区的数据转化成一个优先队列的过程。<br>2、reduce: 将各个分区的优先队列进行合并，最后得到的优先队列即是最大/最小的前n个数<br>3、对最后的num个结果进行sorted(org) 得到最终的排序结果<br>以上是0.9版的代码，总感觉有些问题，1.0的代码比较应该是准确的。<br>1.0的top调用的是takeOrdered方法，其中的队列是val queue = new BoundedPriorityQueue<a href="num">T</a>(ord.reverse),即声明了queue是最大堆还是最小堆</p>
+<h3 id="takeOrdered"><a href="#takeOrdered" class="headerlink" title="takeOrdered"></a>takeOrdered</h3><p>和top一样：top(num)(ord.reverse)</p>
+<p>自定义Ordering可以使用Ordering.by或增加实现Ordering的类</p>
+<pre><code>rdd.takeOrdered(num)(Ordering.by(_._1))
+</code></pre><h3 id="keyBy-f"><a href="#keyBy-f" class="headerlink" title="keyBy(f)"></a>keyBy(f)</h3><p>变成(f(x),x)对，即map(x =&gt; (f(x), x))</p>
+<h3 id="saveAsTextFile"><a href="#saveAsTextFile" class="headerlink" title="saveAsTextFile"></a>saveAsTextFile</h3><p>将结果保存到hdfs等文件系统上</p>
+<p>其他keyvalue型的RDD的操作见<a href="http://dataknocker.github.io/2014/07/22/spark%20rdd%20keyvalue%E6%93%8D%E4%BD%9C/#reduceByKey" target="_blank" rel="noopener">spark RDD keyvalue操作</a></p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+<div class="article-catetags">
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/spark/">spark</a>
+</div>
+
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/spark/">spark</a><a href="/tags/RDD/">RDD</a>
+  </div>
+
+</div>
+
+
+
+	<div class="article-share" id="share">
+	
+	<div class="share-jiathis">
+	  
+<div class="jiathis_style_24x24">
+	<a class="jiathis_button_tsina"></a>
+	<a class="jiathis_button_weixin"></a>
+	<a class="jiathis_button_renren"></a>
+	<a class="jiathis_button_qzone"></a>
+	<a class="jiathis_button_googleplus"></a>
+	<a class="jiathis_button_douban"></a>
+	<a href="http://www.jiathis.com/share" class="jiathis jiathis_txt jtico jtico_jiathis" target="_blank"></a>
+	<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript" >
+    var jiathis_config={
+    data_track_clickback:true,
+    sm:"copy,renren,cqq",
+    pic:"",
+    summary:"",
+     ralateuid:{"tsina":"2036985411"},hideMore:false}
+    
+  </script> 
+<script type="text/javascript" src="//v3.jiathis.com/code/jia.js?uid=
+1796651" charset="utf-8"></script>      
+
+	 </div>
+	
+	</div>
+
+
+</footer>
+
+   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2014/07/22/spark rdd keyvalue操作/" title="spark RDD keyvalue操作">
+  <strong>上一篇：</strong><br/>
+  <span>
+  spark RDD keyvalue操作</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2014/07/11/spark相关流程解析/"  title="spark相关流程解析">
+ <strong>下一篇：</strong><br/> 
+ <span>spark相关流程解析
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+
+
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="Show Sidebar"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">Contents</strong>
+ 
+ <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#rdd最主要方法"><span class="toc-number">1.</span> <span class="toc-text">rdd最主要方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#实例"><span class="toc-number">2.</span> <span class="toc-text">实例</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Transform"><span class="toc-number">3.</span> <span class="toc-text">Transform</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#map"><span class="toc-number">3.1.</span> <span class="toc-text">map</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#filter"><span class="toc-number">3.2.</span> <span class="toc-text">filter</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#flatMap"><span class="toc-number">3.3.</span> <span class="toc-text">flatMap</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#distinct"><span class="toc-number">3.4.</span> <span class="toc-text">distinct</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#repartition和coalece"><span class="toc-number">3.5.</span> <span class="toc-text">repartition和coalece</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#sample"><span class="toc-number">3.6.</span> <span class="toc-text">sample</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#intersection"><span class="toc-number">3.7.</span> <span class="toc-text">intersection</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#subtract"><span class="toc-number">3.8.</span> <span class="toc-text">subtract</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#union-以及"><span class="toc-number">3.9.</span> <span class="toc-text">union  以及 ++</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#cartesian"><span class="toc-number">3.10.</span> <span class="toc-text">cartesian</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#groupBy-f"><span class="toc-number">3.11.</span> <span class="toc-text">groupBy(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#pipe"><span class="toc-number">3.12.</span> <span class="toc-text">pipe</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#mapPartitions-f"><span class="toc-number">3.13.</span> <span class="toc-text">mapPartitions(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#zip"><span class="toc-number">3.14.</span> <span class="toc-text">zip</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#zipPartitions"><span class="toc-number">3.15.</span> <span class="toc-text">zipPartitions</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Action"><span class="toc-number">4.</span> <span class="toc-text">Action</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#SparkContext-runjob"><span class="toc-number">4.1.</span> <span class="toc-text">SparkContext.runjob</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#foreach-f"><span class="toc-number">4.2.</span> <span class="toc-text">foreach(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#foreachPartition-f"><span class="toc-number">4.3.</span> <span class="toc-text">foreachPartition(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#collect、toArray"><span class="toc-number">4.4.</span> <span class="toc-text">collect、toArray</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#reduce"><span class="toc-number">4.5.</span> <span class="toc-text">reduce</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#fold"><span class="toc-number">4.6.</span> <span class="toc-text">fold</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#aggregate"><span class="toc-number">4.7.</span> <span class="toc-text">aggregate</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#count"><span class="toc-number">4.8.</span> <span class="toc-text">count</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#countApprox"><span class="toc-number">4.9.</span> <span class="toc-text">countApprox</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#countByValue"><span class="toc-number">4.10.</span> <span class="toc-text">countByValue</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#take-num"><span class="toc-number">4.11.</span> <span class="toc-text">take(num)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#first"><span class="toc-number">4.12.</span> <span class="toc-text">first</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#top"><span class="toc-number">4.13.</span> <span class="toc-text">top</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#takeOrdered"><span class="toc-number">4.14.</span> <span class="toc-text">takeOrdered</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#keyBy-f"><span class="toc-number">4.15.</span> <span class="toc-text">keyBy(f)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#saveAsTextFile"><span class="toc-number">4.16.</span> <span class="toc-text">saveAsTextFile</span></a></li></ol></li></ol>
+ 
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="Hide Sidebar"></a></div>
+<aside class="clearfix">
+
+  
+<div class="github-card">
+<p class="asidetitle">Github Card</p>
+<div class="github-card" data-github="dataknocker" data-theme="medium"></div>
+<script type="text/javascript" src="//cdn.jsdelivr.net/github-cards/latest/widget.js" ></script>
+</div>
+
+
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">Categories</p>
+		<ul>
+		
+		  
+			<li><a href="/categories/Spark/" title="Spark">Spark<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/solr/" title="solr">solr<sup>1</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/spark/" title="spark">spark<sup>8</sup></a></li>
+		  
+		
+		  
+			<li><a href="/categories/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+		  
+		
+		</ul>
+</div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">Tags</p>
+		<ul class="clearfix">
+		
+			
+				<li><a href="/tags/spark/" title="spark">spark<sup>9</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/RDD/" title="RDD">RDD<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/shuffle/" title="shuffle">shuffle<sup>2</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/standalone/" title="standalone">standalone<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/solr/" title="solr">solr<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/空间索引/" title="空间索引">空间索引<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/AppendOnlyMap/" title="AppendOnlyMap">AppendOnlyMap<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
+			
+		
+		</ul>
+</div>
+
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS</a>
+</div>
+
+  <div class="weiboshow">
+  <p class="asidetitle">Weibo</p>
+    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<section class="info">
+		<p> 进击的菜鸟 <br/>
+			专注于大数据框架、机器学习，会点前端、后台开发</p>
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1619689670" target="_blank" class="icon-weibo" title="微博"></a>
+		
+		
+		<a href="https://github.com/dataknocker" target="_blank" class="icon-github" title="github"></a>
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		<a href="mailto:511217265@qq.com" target="_blank" class="icon-email" title="Email Me"></a>
+		
+	</div>
+			
+		
+
+		<p class="copyright">
+		Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wuchong/jacman" target="_blank" title="Jacman">Jacman</a> © 2018 
+		
+		<a href="/about" target="_blank" title="wangzejie">wangzejie</a>
+		
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.0.3.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+<script src="/js/jquery.qrcode-0.12.0.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+  
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else{
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  c.click(function(){
+    ta.css('display', 'block').addClass('fadeIn');
+  });
+  o.click(function(){
+    ta.css('display', 'none');
+  });
+  $(window).scroll(function(){
+    ta.css("top",Math.max(140,320-$(this).scrollTop()));
+  });
+});
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+}); 
+</script>
+
+
+
+<!-- Analytics Begin -->
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-52840244-1', 'auto');  
+ga('send', 'pageview');
+</script>
+
+
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?37562e8d14eb29a7932c0447aea7d3c3";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+
+
+<!-- Analytics End -->
+
+<!-- Totop Begin -->
+
+	<div id="totop">
+	<a title="Back to Top"><img src="/img/scrollup.png"/></a>
+	</div>
+	<script src="/js/totop.js"></script>
+
+<!-- Totop End -->
+
+<!-- MathJax Begin -->
+<!-- mathjax config similar to math.stackexchange -->
+
+
+<!-- MathJax End -->
+
+<!-- Tiny_search Begin -->
+
+<!-- Tiny_search End -->
+
+  </body>
+</html>
