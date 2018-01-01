@@ -18,7 +18,7 @@
 <meta property="og:url" content="http://yoursite.com/2014/11/12/spark-shuffle重用/index.html">
 <meta property="og:site_name" content="DataKnocker">
 <meta property="og:description" content="在运行时看DAG 图时有时候会现一些stage会被跳过。这是因为当一个经过shuffle后的rdd，如ShuffledRDD, 再次被使用时，该ShuffledRDD对应的stage不会重新计算(除非某些分区数据出问题了，也只会单独对这些分区进行计算)。具体原理： 1、ShuffledRDD的ShuffleDependency中的shuffleId对于这个shuffledRDD初始化是不变的。2、">
-<meta property="og:updated_time" content="2014-11-11T23:20:44.000Z">
+<meta property="og:updated_time" content="2018-01-01T02:15:40.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="spark stage shuffle重用">
 <meta name="twitter:description" content="在运行时看DAG 图时有时候会现一些stage会被跳过。这是因为当一个经过shuffle后的rdd，如ShuffledRDD, 再次被使用时，该ShuffledRDD对应的stage不会重新计算(除非某些分区数据出问题了，也只会单独对这些分区进行计算)。具体原理： 1、ShuffledRDD的ShuffleDependency中的shuffleId对于这个shuffledRDD初始化是不变的。2、">
@@ -106,29 +106,10 @@
 		</div>
 		
 		<p>在运行时看DAG 图时有时候会现一些stage会被跳过。<br>这是因为当一个经过shuffle后的rdd，如ShuffledRDD, 再次被使用时，该ShuffledRDD对应的stage不会重新计算(除非某些分区数据出问题了，也只会单独对这些分区进行计算)。<br>具体原理：</p>
-<p>1、ShuffledRDD的ShuffleDependency中的shuffleId对于这个shuffledRDD初始化是不变的。<br>2、shuffleToMapStage保存了之前的shuffleId与相应的stage<br>DAGScheduler:<br>getMissingParentStages:<br>    getShuffleMapStage(shufDep, stage.jobId):</p>
-<pre><code>shuffleToMapStage.get(shuffleDep.shuffleId) match {
-  case Some(stage) =&gt; stage
-  case None =&gt;
-    // We are going to register ancestor shuffle dependencies
-    registerShuffleDependencies(shuffleDep, jobId)
-    // Then register current shuffleDep
-    val stage =
-      newOrUsedStage(
-        shuffleDep.rdd, shuffleDep.rdd.partitions.size, shuffleDep, jobId,
-        shuffleDep.rdd.creationSite)
-    shuffleToMapStage(shuffleDep.shuffleId) = stage
-
-    stage
-}
-</code></pre><p>3、某个shufflerdd完成后，第二次被调用时，shuffleDep.shuffleId就是和之前一样的，所以直接返回之前生成的stage.</p>
-<p>4、而在DAGScheduler的submitMissingTasks中</p>
-<pre><code>val partitionsToCompute: Seq[Int] = {
-  if (stage.isShuffleMap) {
-    (0 until stage.numPartitions).filter(id =&gt; stage.outputLocs(id) == Nil)
-  }
-}
-</code></pre><p>partitionsToCompute是作为真正要跑的task来源，发现只有stage.outputLocs(id) == Nil才会被放到task列表中。</p>
+<p>1、ShuffledRDD的ShuffleDependency中的shuffleId对于这个shuffledRDD初始化是不变的。<br>2、shuffleToMapStage保存了之前的shuffleId与相应的stage<br>DAGScheduler:<br>getMissingParentStages:<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">getShuffleMapStage(shufDep, stage.jobId):</span><br><span class="line"></span><br><span class="line">shuffleToMapStage.get(shuffleDep.shuffleId) <span class="keyword">match</span> &#123;</span><br><span class="line">     <span class="keyword">case</span> <span class="type">Some</span>(stage) =&gt; stage</span><br><span class="line">     <span class="keyword">case</span> <span class="type">None</span> =&gt;</span><br><span class="line">       <span class="comment">// We are going to register ancestor shuffle dependencies</span></span><br><span class="line">       registerShuffleDependencies(shuffleDep, jobId)</span><br><span class="line">       <span class="comment">// Then register current shuffleDep</span></span><br><span class="line">       <span class="keyword">val</span> stage =</span><br><span class="line">         newOrUsedStage(</span><br><span class="line">           shuffleDep.rdd, shuffleDep.rdd.partitions.size, shuffleDep, jobId,</span><br><span class="line">           shuffleDep.rdd.creationSite)</span><br><span class="line">       shuffleToMapStage(shuffleDep.shuffleId) = stage</span><br><span class="line"></span><br><span class="line">       stage</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>3、某个shufflerdd完成后，第二次被调用时，shuffleDep.shuffleId就是和之前一样的，所以直接返回之前生成的stage.</p>
+<p>4、而在DAGScheduler的submitMissingTasks中<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> partitionsToCompute: <span class="type">Seq</span>[<span class="type">Int</span>] = &#123;</span><br><span class="line">     <span class="keyword">if</span> (stage.isShuffleMap) &#123;</span><br><span class="line">       (<span class="number">0</span> until stage.numPartitions).filter(id =&gt; stage.outputLocs(id) == <span class="type">Nil</span>)</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>partitionsToCompute是作为真正要跑的task来源，发现只有stage.outputLocs(id) == Nil才会被放到task列表中。</p>
 <p>可见由于stage是用之前的，其outputLocs在第一次shuffle完就有值了，所以这时就不会再对这些task进行计算了。</p>
   
 	</div>
@@ -281,14 +262,6 @@
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -297,15 +270,23 @@
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -317,6 +298,14 @@
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -325,19 +314,11 @@
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -350,7 +331,7 @@
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

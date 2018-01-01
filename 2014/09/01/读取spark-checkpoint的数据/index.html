@@ -11,17 +11,17 @@
     
 
     
-    <meta name="description" content="checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。 checkpoint write data: sc.setCheckpointDir(&amp;quot;data/checkpoint&amp;quot;) val rddt = sc.parallelize(Array((1,2),(3,4),(5,6)),2)">
+    <meta name="description" content="checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。 checkpoint write data:1234sc.setCheckpointDir(&quot;data/checkpoint&quot;)val rddt = sc.parallelize(Array((1,2),(3,4),(5,6)),2)rddt.che">
 <meta name="keywords" content="spark,checkpoint">
 <meta property="og:type" content="article">
 <meta property="og:title" content="读取spark checkpoint的数据">
 <meta property="og:url" content="http://yoursite.com/2014/09/01/读取spark-checkpoint的数据/index.html">
 <meta property="og:site_name" content="DataKnocker">
-<meta property="og:description" content="checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。 checkpoint write data: sc.setCheckpointDir(&amp;quot;data/checkpoint&amp;quot;) val rddt = sc.parallelize(Array((1,2),(3,4),(5,6)),2)">
-<meta property="og:updated_time" content="2014-08-31T23:24:30.000Z">
+<meta property="og:description" content="checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。 checkpoint write data:1234sc.setCheckpointDir(&quot;data/checkpoint&quot;)val rddt = sc.parallelize(Array((1,2),(3,4),(5,6)),2)rddt.che">
+<meta property="og:updated_time" content="2018-01-01T02:18:43.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="读取spark checkpoint的数据">
-<meta name="twitter:description" content="checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。 checkpoint write data: sc.setCheckpointDir(&amp;quot;data/checkpoint&amp;quot;) val rddt = sc.parallelize(Array((1,2),(3,4),(5,6)),2)">
+<meta name="twitter:description" content="checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。 checkpoint write data:1234sc.setCheckpointDir(&quot;data/checkpoint&quot;)val rddt = sc.parallelize(Array((1,2),(3,4),(5,6)),2)rddt.che">
 
     
     <link rel="alternative" href="/atom.xml" title="DataKnocker" type="application/atom+xml">
@@ -106,29 +106,11 @@
 		</div>
 		
 		<p>checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。</p>
-<p>checkpoint write data:</p>
-<pre><code>sc.setCheckpointDir(&quot;data/checkpoint&quot;)
-val rddt = sc.parallelize(Array((1,2),(3,4),(5,6)),2)
-rddt.checkpoint()
-rddt.count() //要action才能触发checkpoint
-</code></pre><p>read from checkpoint data:</p>
-<pre><code>package org.apache.spark
-
-import org.apache.spark.rdd.RDD
-
-object RDDUtilsInSpark {
-  def getCheckpointRDD[T](sc:SparkContext, path:String) = {
-      //path要到part-000000的父目录
-    val result : RDD[Any] = sc.checkpointFile(path)
-    result.asInstanceOf[T]
-  }
-}
-</code></pre><p><em>note:因为sc.checkpointFile(path)是private[spark]的，所以该类要写在自己工程里新建的package org.apache.spark中</em></p>
-<p>example:</p>
-<pre><code>val rdd : RDD[(Int, Int)]= RDDUtilsInSpark.getCheckpointRDD(sc, &quot;data/checkpoint/963afe46-eb23-430f-8eae-8a6c5a1e41ba/rdd-0&quot;)
-println(rdd.count())
-rdd.collect().foreach(println)
-</code></pre><p>这样就可以原样复原了。</p>
+<p>checkpoint write data:<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sc.setCheckpointDir(<span class="string">"data/checkpoint"</span>)</span><br><span class="line"><span class="keyword">val</span> rddt = sc.parallelize(<span class="type">Array</span>((<span class="number">1</span>,<span class="number">2</span>),(<span class="number">3</span>,<span class="number">4</span>),(<span class="number">5</span>,<span class="number">6</span>)),<span class="number">2</span>)</span><br><span class="line">rddt.checkpoint()</span><br><span class="line">rddt.count() <span class="comment">//要action才能触发checkpoint</span></span><br></pre></td></tr></table></figure></p>
+<p>read from checkpoint data:<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> org.apache.spark</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.spark.rdd.<span class="type">RDD</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">object</span> <span class="title">RDDUtilsInSpark</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">getCheckpointRDD</span></span>[<span class="type">T</span>](sc:<span class="type">SparkContext</span>, path:<span class="type">String</span>) = &#123;</span><br><span class="line">  	<span class="comment">//path要到part-000000的父目录</span></span><br><span class="line">    <span class="keyword">val</span> result : <span class="type">RDD</span>[<span class="type">Any</span>] = sc.checkpointFile(path)</span><br><span class="line">    result.asInstanceOf[<span class="type">T</span>]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><em>note:因为sc.checkpointFile(path)是private[spark]的，所以该类要写在自己工程里新建的package org.apache.spark中</em></p>
+<p>example:<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> rdd : <span class="type">RDD</span>[(<span class="type">Int</span>, <span class="type">Int</span>)]= <span class="type">RDDUtilsInSpark</span>.getCheckpointRDD(sc, <span class="string">"data/checkpoint/963afe46-eb23-430f-8eae-8a6c5a1e41ba/rdd-0"</span>)</span><br><span class="line">   println(rdd.count())</span><br><span class="line">   rdd.collect().foreach(println)</span><br></pre></td></tr></table></figure></p>
+<p>这样就可以原样复原了。</p>
   
 	</div>
 		<footer class="article-footer clearfix">
@@ -280,14 +262,6 @@ rdd.collect().foreach(println)
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -296,15 +270,23 @@ rdd.collect().foreach(println)
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -316,6 +298,14 @@ rdd.collect().foreach(println)
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -324,19 +314,11 @@ rdd.collect().foreach(println)
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -349,7 +331,7 @@ rdd.collect().foreach(println)
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

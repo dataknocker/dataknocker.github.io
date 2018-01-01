@@ -29,7 +29,7 @@
 <meta property="og:image" content="http://yoursite.com/img/solrspatial/solr创建索引流程.png">
 <meta property="og:image" content="http://yoursite.com/img/solrspatial/solr空间索引查询类图.png">
 <meta property="og:image" content="http://yoursite.com/img/solrspatial/lucene%20write的类图.png">
-<meta property="og:updated_time" content="2014-07-10T20:37:22.000Z">
+<meta property="og:updated_time" content="2018-01-01T02:09:15.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="solr空间索引原理及源码分析">
 <meta name="twitter:description" content="note:图片请右键 在新页签打开，可以放大看 solr的4.0-4.1版本使用GeohashField.createSpatialQuery(), 未使用IntersectsPrefixTreeFilter(继承于AbstractVisitingPrefixTreeFilter)。4.2版本开始使用IntersectsPrefixTreeFilter。4.2和4.3及以后的区别好像只是小改了一些">
@@ -127,45 +127,18 @@
 <li>获得子Cell不同：geohash下一层有32个子Cell(编码为0-z), quad下一层有4个子Cell(编码为ABCD。A:左上，B：右上，C:左下，D:右下)</li>
 </ul>
 <p>由于两种方法的大致思想一致，所以下文重点介绍geohash。</p>
-<h2 id="重要属性"><a href="#重要属性" class="headerlink" title="重要属性"></a>重要属性</h2><p>schema.xml中的空间索引类型的配置：</p>
-<pre><code>&lt;fieldType name=&quot;location_jts&quot;   class=&quot;solr.SpatialRecursivePrefixTreeFieldType&quot;
-           spatialContextFactory=&quot;com.spatial4j.core.context.jts.JtsSpatialContextFactory&quot;
-           distErrPct=&quot;0.025&quot;
-           maxDistErr=&quot;0.000009&quot;
-           units=&quot;degrees&quot;/&gt;
-</code></pre><ul>
+<h2 id="重要属性"><a href="#重要属性" class="headerlink" title="重要属性"></a>重要属性</h2><p>schema.xml中的空间索引类型的配置：<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">fieldType</span> <span class="attr">name</span>=<span class="string">"location_jts"</span>   <span class="attr">class</span>=<span class="string">"solr.SpatialRecursivePrefixTreeFieldType"</span></span></span><br><span class="line"><span class="tag">           <span class="attr">spatialContextFactory</span>=<span class="string">"com.spatial4j.core.context.jts.JtsSpatialContextFactory"</span></span></span><br><span class="line"><span class="tag">           <span class="attr">distErrPct</span>=<span class="string">"0.025"</span></span></span><br><span class="line"><span class="tag">           <span class="attr">maxDistErr</span>=<span class="string">"0.000009"</span></span></span><br><span class="line"><span class="tag">           <span class="attr">units</span>=<span class="string">"degrees"</span>/&gt;</span></span><br></pre></td></tr></table></figure></p>
+<ul>
 <li>SpatialRecursivePrefixTreeFieldType</li>
 </ul>
 <p>用于深度遍历前缀树的FieldType，主要用于获得基于Lucene中的RecursivePrefixTreeStrategy。</p>
 <ul>
 <li>JtsSpatialContextFactory<br>当有Polygon多边形时会使用jts(需要把jts.jar放到solr服务的lib下)。基本形状使用SpatialContext (spatial4j的类)。</li>
-<li><p>distErrPct<br>定义非Point图形的精度，范围在0-0.5之间，默认0.025。该值决定了非Point的图形索引或查询时的level(如geohash模式时就是geohash的长度)。当为0时取maxLevels，即精度最大。计算level的方法是 Shape中心到其外包矩形的最远corner的距离 * distErrPct (这块理论依据还没研究…)。实现代码如下SpatialArgs.calcDistanceFromErrPct()返回distErr：</p>
-<p>  public static double calcDistanceFromErrPct(Shape shape, double distErrPct, SpatialContext ctx) {</p>
-<pre><code>  if (distErrPct &lt; 0 || distErrPct &gt; 0.5) {
-    throw new IllegalArgumentException(&quot;distErrPct &quot; + distErrPct + &quot; must be between [0 to 0.5]&quot;);
-  }
-  if (distErrPct == 0 || shape instanceof Point) {
-    return 0;
-  }
-  Rectangle bbox = shape.getBoundingBox();
-  //Compute the distance from the center to a corner.  Because the distance
-  // to a bottom corner vs a top corner can vary in a geospatial scenario,
-  // take the closest one (greater precision).
-  Point ctr = bbox.getCenter();
-  double y = (ctr.getY() &gt;= 0 ? bbox.getMaxY() : bbox.getMinY());
-  double diagonalDist = ctx.getDistCalc().distance(ctr, bbox.getMaxX(), y);
-  return diagonalDist * distErrPct;
-}
-</code></pre></li>
+<li>distErrPct<br>定义非Point图形的精度，范围在0-0.5之间，默认0.025。该值决定了非Point的图形索引或查询时的level(如geohash模式时就是geohash的长度)。当为0时取maxLevels，即精度最大。计算level的方法是 Shape中心到其外包矩形的最远corner的距离 * distErrPct (这块理论依据还没研究…)。实现代码如下SpatialArgs.calcDistanceFromErrPct()返回distErr：<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">double</span> <span class="title">calcDistanceFromErrPct</span><span class="params">(Shape shape, <span class="keyword">double</span> distErrPct, SpatialContext ctx)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (distErrPct &lt; <span class="number">0</span> || distErrPct &gt; <span class="number">0.5</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"distErrPct "</span> + distErrPct + <span class="string">" must be between [0 to 0.5]"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (distErrPct == <span class="number">0</span> || shape <span class="keyword">instanceof</span> Point) &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    Rectangle bbox = shape.getBoundingBox();</span><br><span class="line">    <span class="comment">//Compute the distance from the center to a corner.  Because the distance</span></span><br><span class="line">    <span class="comment">// to a bottom corner vs a top corner can vary in a geospatial scenario,</span></span><br><span class="line">    <span class="comment">// take the closest one (greater precision).</span></span><br><span class="line">    Point ctr = bbox.getCenter();</span><br><span class="line">    <span class="keyword">double</span> y = (ctr.getY() &gt;= <span class="number">0</span> ? bbox.getMaxY() : bbox.getMinY());</span><br><span class="line">    <span class="keyword">double</span> diagonalDist = ctx.getDistCalc().distance(ctr, bbox.getMaxX(), y);</span><br><span class="line">    <span class="keyword">return</span> diagonalDist * distErrPct;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+</li>
 </ul>
-<p>然后由GeohashPrefixTree.getLevelForDistantce(distErr)来求得geohash精度。</p>
-<pre><code>public int getLevelForDistance(double dist) {
-    if (dist == 0) //Point时dist=0
-      return maxLevels;//short circuit
-    final int level = GeohashUtils.lookupHashLenForWidthHeight(dist, dist);
-    return Math.max(Math.min(level, maxLevels), 1);
-  }
-</code></pre><ul>
+<p>然后由GeohashPrefixTree.getLevelForDistantce(distErr)来求得geohash精度。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getLevelForDistance</span><span class="params">(<span class="keyword">double</span> dist)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (dist == <span class="number">0</span>) <span class="comment">//Point时dist=0</span></span><br><span class="line">      <span class="keyword">return</span> maxLevels;<span class="comment">//short circuit</span></span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">int</span> level = GeohashUtils.lookupHashLenForWidthHeight(dist, dist);</span><br><span class="line">    <span class="keyword">return</span> Math.max(Math.min(level, maxLevels), <span class="number">1</span>);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
 <li>maxDistErr/maxLevels</li>
 </ul>
 <p>定义索引数据的最高层maxLevels，默认是0.000009即1米(geohash11位)，直接决定了Point索引的term数。<br>maxLevels优先级高于maxDistErr,即有maxLevels的话maxDistErr失效。详见SpatialPrefixTreeFactory.init()方法。<br>不过一般使用maxDistErr。</p>
@@ -190,11 +163,8 @@
 <li>非Point<br>如Polygon。非Point的索引中有leaf叶子结点的概念，比如wtxrvb包含在Polygon中，则该cell为leaf，生成term时会有wtxrvb与wtxrvb+(+是leaf的标志)。</li>
 </ul>
 <h3 id="空间索引创建流程"><a href="#空间索引创建流程" class="headerlink" title="空间索引创建流程"></a>空间索引创建流程</h3><p><img src="../../../../img/solrspatial/空间索引创建过程.png" alt="空间索引创建过程"><br>说明：Point的term就是把其geohash:wtxrvb变成w、wt、wtx、wtxr、wtxrv、wtxrvb，Point的索引Level为maxLevels(即11位)。下面主要说明非Point的term创建过程。<br>1、将空间索引域的shapeStr解析成相应的Shape(复杂Shape如Polygon要使用JTS中的WTKReader来解析)，以下拿Polygon为例。<br>2、计算目标Polygon的索引Level,即根据Polygon的外包矩形以及distErrPct算出distErr，再调用SpatialPrefixTree.getLevelForDistance(distErr)得到索引detaiLlevel。<br>3、得到与目标Polygon相交(即有交集或在Polygon内)的所有子Cell。主要做法是从root=WorldCell开始进行深度遍历并对各子树进行前枝：每下一层有32个子结点，然后判断各子结点与Polygon的相交情况。判断相交时简单的可以用spatial4j包来计算，复杂的需要用JTS。判断相交主要是先与Polygon的外包矩形判断是否相交(提高效率)，如果相交，再与Polygon进行进一步相交判断。<br>     a、不相交的则舍弃该Cell(其子Cell也不会被遍历到)。<br>     b、包含在目标Polygon中，则设置该Cell为叶结点(term末尾加+)， 添加到result中，其子Cell不再遍历。<br>     c、intersect以及contain Polygon: 将Cell添加到result中，然后继续深度遍历其子Cell，获得更精确的Cell。<br>     d、当cell的token长度达到detailLevel时，则到达最底层，标记为叶结点，添加到result中，停止该Cell的遍历。如果某个Cell的32个子Cell都是叶结点，则删除这32个子结点，把该Cell设置成叶结点。(这里直接影响了查询时的误差，会多取数据。即查询到detailLevel的geohash时，其实不包括该多边形，但也把多边形算进去了)<br>4、得到Filed，得到的Cell列表都放在CellTokenStream中。<br>5、存储索引域与存储域。<br>下图为判断相交的示意图：<br><img src="../../../../img/solrspatial/空间索引过程示意图2.jpg" alt="空间索引过程示意图"><br>多边形索引一般会得到几百上千个term，大大增加了索引大小与创建时间，哎，一切都是为了查询…</p>
-<h2 id="空间索引查询"><a href="#空间索引查询" class="headerlink" title="空间索引查询"></a>空间索引查询</h2><h3 id="查询语法"><a href="#查询语法" class="headerlink" title="查询语法"></a>查询语法</h3><pre><code>q={!geofilt pt=45.15,-93.85 sfield=geo d=5 score=distance}
-q={!bbox pt=45.15,-93.85 sfield=geo d=5 score=distance}
-q=geo:&quot;Intersects(-74.093 41.042 -69.347 44.558)&quot;
-q=geo:&quot;Intersects(POLYGON((-10 30, -40 40, -10 -20, 40 20, 0 0, -10 30)))&quot;
-</code></pre><h3 id="查询方法"><a href="#查询方法" class="headerlink" title="查询方法"></a>查询方法</h3><p>我们可以像创建空间索引的方法那样得到与查询Shape相交的所有子Cell，然后再与term进行匹配，但这有两个问题：一是很多没有数据的区域也会被深度遍历，二是得到的子Cell与term进行匹配比较麻烦(比如一个精度很大的多边形查询，其获得了很多前缀，不知道该拿哪些前缀去匹配相应的term从而获得docId)。<br>solr的查询策略：利用了索引term的字典有序可以有效地对上面的深度遍历进行剪枝，term的顺序和深度遍历的Cell的顺序是一致的。具体流程如下图：<br><img src="../../../../img/solrspatial/solr空间查询策略.png" alt="solr空间查询策略"><br>说明：<br>1、获得空间索引域的第一个域，深度遍历root=WorldCell开始，找到与查询Shape相交的子Cell。<br>2、开始深度遍历, 找到遍历的下一个结点，判断当前Cell与当前term的大小关系：<br>      a、当前Cell &lt; term : 则跳过该Cell， 因为term是按字典序顺序取的，在当前term之前的Cell对应不到数据。<br>      b、当前Cell &gt; term : 当前term已经匹配完成(因为以后遍历的Cell肯定都比当前term大)，定位到下一个&gt;=Cell的最小term，继续遍历Cell。<br>      c、当前Cell = term : 判断当前Cell是否还要继续深度遍历，即如果Cell包含在查询Shape内，或者Cell已经达到了查询Shape的detailLevel层时，则当前Cell遍历结束，将当前term上的docId都取出来；否则继续深度遍历获得当前Cell的与查询Shape相交的子Cell。同时取下一个term。这里有个特殊情况是当term是以+结尾即leaf结点时且Cell长度和term长度一样长时(长度比较不包括+)，说明该数据是非Point索引时的叶结点，再深度遍历已经也对应不上相应的term，所以就把该term对应的非Point docId都取出来，然后取下一个term。<br>不断重复第2步直到term取完或者所有树结点都被遍历完。<br>下图是查询策略的示意图：<br><img src="../../../../img/solrspatial/solr空间索引查询示意图.jpg" alt="solr空间索引查询示意图"></p>
+<h2 id="空间索引查询"><a href="#空间索引查询" class="headerlink" title="空间索引查询"></a>空间索引查询</h2><h3 id="查询语法"><a href="#查询语法" class="headerlink" title="查询语法"></a>查询语法</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">q=&#123;!geofilt pt=45.15,-93.85 sfield=geo d=5 score=distance&#125;</span><br><span class="line">q=&#123;!bbox pt=45.15,-93.85 sfield=geo d=5 score=distance&#125;</span><br><span class="line">q=geo:<span class="string">"Intersects(-74.093 41.042 -69.347 44.558)"</span></span><br><span class="line">q=geo:<span class="string">"Intersects(POLYGON((-10 30, -40 40, -10 -20, 40 20, 0 0, -10 30)))"</span></span><br></pre></td></tr></table></figure>
+<h3 id="查询方法"><a href="#查询方法" class="headerlink" title="查询方法"></a>查询方法</h3><p>我们可以像创建空间索引的方法那样得到与查询Shape相交的所有子Cell，然后再与term进行匹配，但这有两个问题：一是很多没有数据的区域也会被深度遍历，二是得到的子Cell与term进行匹配比较麻烦(比如一个精度很大的多边形查询，其获得了很多前缀，不知道该拿哪些前缀去匹配相应的term从而获得docId)。<br>solr的查询策略：利用了索引term的字典有序可以有效地对上面的深度遍历进行剪枝，term的顺序和深度遍历的Cell的顺序是一致的。具体流程如下图：<br><img src="../../../../img/solrspatial/solr空间查询策略.png" alt="solr空间查询策略"><br>说明：<br>1、获得空间索引域的第一个域，深度遍历root=WorldCell开始，找到与查询Shape相交的子Cell。<br>2、开始深度遍历, 找到遍历的下一个结点，判断当前Cell与当前term的大小关系：<br>      a、当前Cell &lt; term : 则跳过该Cell， 因为term是按字典序顺序取的，在当前term之前的Cell对应不到数据。<br>      b、当前Cell &gt; term : 当前term已经匹配完成(因为以后遍历的Cell肯定都比当前term大)，定位到下一个&gt;=Cell的最小term，继续遍历Cell。<br>      c、当前Cell = term : 判断当前Cell是否还要继续深度遍历，即如果Cell包含在查询Shape内，或者Cell已经达到了查询Shape的detailLevel层时，则当前Cell遍历结束，将当前term上的docId都取出来；否则继续深度遍历获得当前Cell的与查询Shape相交的子Cell。同时取下一个term。这里有个特殊情况是当term是以+结尾即leaf结点时且Cell长度和term长度一样长时(长度比较不包括+)，说明该数据是非Point索引时的叶结点，再深度遍历已经也对应不上相应的term，所以就把该term对应的非Point docId都取出来，然后取下一个term。<br>不断重复第2步直到term取完或者所有树结点都被遍历完。<br>下图是查询策略的示意图：<br><img src="../../../../img/solrspatial/solr空间索引查询示意图.jpg" alt="solr空间索引查询示意图"></p>
 <h3 id="空间索引查询流程"><a href="#空间索引查询流程" class="headerlink" title="空间索引查询流程"></a>空间索引查询流程</h3><p><img src="../../../../img/solrspatial/空间索引查询流程.png" alt="空间索引查询流程"><br>上图以geofilt查询为例，其中分成有score=distance和无score=distance两种情况。</p>
 <ul>
 <li>先介绍不需要score的情况：<br>1、解析查询，生成Query树：获得相应的QParse, 对geofilt进行语法解析，获得geofilt的各个参数，并且获得相应的查询Query(ConstantScoreQuery)包括相应的Filter(IntersectsPrefixTreeFilter)，其中也计算了查询Shape的一些属性，如最大索引长度detailLevel。<br>2、查询：SolrIndexSearch.search()进行创建Weight树和Score树。利用IntersectsPrefixTreeFilter得到符合条件的docIdSet(调用了前面的VistorTemplate深度遍历策略)。由于不需要score，所以Score返回的是ConstantScorer。</li>
@@ -365,14 +335,6 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -381,15 +343,23 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -401,6 +371,14 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -409,19 +387,11 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -434,7 +404,7 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

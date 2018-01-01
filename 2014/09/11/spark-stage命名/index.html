@@ -18,7 +18,7 @@
 <meta property="og:url" content="http://yoursite.com/2014/09/11/spark-stage命名/index.html">
 <meta property="og:site_name" content="DataKnocker">
 <meta property="og:description" content="sparkUI中的stage名称可以方便进行程序逻辑分析，但如果不了解stage的命名原理，看sparkUI时有时就会一头雾水。 stage的名称来自两个地方：callSite (callSite = getCallSite = Utils.getCallSiteInfo) 与 rdd的creationSiteInfo (creationSiteInfo= Utils.getCallSiteInf">
-<meta property="og:updated_time" content="2014-09-11T04:47:44.000Z">
+<meta property="og:updated_time" content="2018-01-01T02:15:47.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="spark stage命名原理">
 <meta name="twitter:description" content="sparkUI中的stage名称可以方便进行程序逻辑分析，但如果不了解stage的命名原理，看sparkUI时有时就会一头雾水。 stage的名称来自两个地方：callSite (callSite = getCallSite = Utils.getCallSiteInfo) 与 rdd的creationSiteInfo (creationSiteInfo= Utils.getCallSiteInf">
@@ -106,55 +106,21 @@
 		</div>
 		
 		<p>sparkUI中的stage名称可以方便进行程序逻辑分析，但如果不了解stage的命名原理，看sparkUI时有时就会一头雾水。</p>
-<p>stage的名称来自两个地方：callSite (callSite = getCallSite = Utils.getCallSiteInfo) 与 rdd的creationSiteInfo (creationSiteInfo= Utils.getCallSiteInfo, 创建rdd时都会初始化该值)。<br>finalStage会有callSite(在runJob是会传递该参数)，其他stage则使用其rdd的creationSiteInfo，即</p>
-<pre><code>val name = callSite.getOrElse(rdd.getCreationSite)
-</code></pre><p>不管是callSite还是rdd的creationSiteInfo，都是调用Utils.getCallSiteInfo方法。<br>其主要原理是获得调用栈，找到栈中是 spark core包(更具体的是符合正则SPARK_CLASS_REGEX的package)的最外层调用作为分界，该调用的方法为lastSparkMethod，然后找到下一个调用，即调用了lastSparkMethod的记录，从而得到firstUserFile、firstUserLine。<br>stage命名方式为：</p>
-<pre><code>&quot;%s at %s:%s&quot;.format(lastSparkMethod, firstUserFile, firstUserLine)
-</code></pre><p>SPARK_CLASS_REGEX代码：</p>
-<pre><code>SPARK_CLASS_REGEX = &quot;&quot;&quot;^org\.apache\.spark(\.api\.java)?(\.util)?(\.rdd)?\.[A-Z]&quot;&quot;&quot;.r
-</code></pre><font color="red">总的说来就是找到调用 满足SPARK_CLASS_REGEX正则的package 中的方法的入口，该方法即为lastSparkMethod， 而该入口所在的类以及行就是firstUserFile, firstUserLine。</font>
+<p>stage的名称来自两个地方：callSite (callSite = getCallSite = Utils.getCallSiteInfo) 与 rdd的creationSiteInfo (creationSiteInfo= Utils.getCallSiteInfo, 创建rdd时都会初始化该值)。<br>finalStage会有callSite(在runJob是会传递该参数)，其他stage则使用其rdd的creationSiteInfo，即<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">val name = callSite.getOrElse(rdd.getCreationSite)</span><br></pre></td></tr></table></figure></p>
+<p>不管是callSite还是rdd的creationSiteInfo，都是调用Utils.getCallSiteInfo方法。<br>其主要原理是获得调用栈，找到栈中是 spark core包(更具体的是符合正则SPARK_CLASS_REGEX的package)的最外层调用作为分界，该调用的方法为lastSparkMethod，然后找到下一个调用，即调用了lastSparkMethod的记录，从而得到firstUserFile、firstUserLine。<br>stage命名方式为：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">"%s at %s:%s"</span>.format(lastSparkMethod, firstUserFile, firstUserLine)</span><br></pre></td></tr></table></figure></p>
+<p>SPARK_CLASS_REGEX代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SPARK_CLASS_REGEX = <span class="string">""</span><span class="string">"^org\.apache\.spark(\.api\.java)?(\.util)?(\.rdd)?\.[A-Z]"</span><span class="string">""</span>.r</span><br></pre></td></tr></table></figure></p>
+<font color="red">总的说来就是找到调用 满足SPARK_CLASS_REGEX正则的package 中的方法的入口，该方法即为lastSparkMethod， 而该入口所在的类以及行就是firstUserFile, firstUserLine。</font>
 
-<h2 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h2><h3 id="简单例子"><a href="#简单例子" class="headerlink" title="简单例子"></a>简单例子</h3><p>以一个例子来说明上面的原理</p>
-<pre><code>object StageNameTest {
-  def main(args:Array[String]){
-    val sc = new SparkContext(&quot;local&quot;,&quot;stageNameTest&quot;)
-    val rdd = sc.parallelize(1 to 100, 5)
-    println(rdd.count())
-  }
-}
-</code></pre><h4 id="rdd的creationSiteInfo"><a href="#rdd的creationSiteInfo" class="headerlink" title="rdd的creationSiteInfo"></a>rdd的creationSiteInfo</h4><p>在sc.parallelize(1 to 100, 5)时会生成ParallelCollectionRDD，其creationSiteInfo的调用栈为：</p>
-<pre><code>org.apache.spark.util.Utils$.getCallSiteInfo(Utils.scala:817)
-org.apache.spark.rdd.RDD.&lt;init&gt;(RDD.scala:1137)
-org.apache.spark.rdd.ParallelCollectionRDD.&lt;init&gt;(ParallelCollectionRDD.scala:85)
-org.apache.spark.SparkContext.parallelize(SparkContext.scala:436)
-StageNameTest$.main(StageNameTest.scala:11)  //由于代码没贴全，所以linenumber=11是我代码中的位置
-StageNameTest.main(StageNameTest.scala)
-</code></pre><p>调用栈由内向外查找className满足SPARK_CLASS_REGEX正则的最外层调用，这里就是：</p>
+<h2 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h2><h3 id="简单例子"><a href="#简单例子" class="headerlink" title="简单例子"></a>简单例子</h3><p>以一个例子来说明上面的原理<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">object</span> <span class="title">StageNameTest</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">main</span></span>(args:<span class="type">Array</span>[<span class="type">String</span>])&#123;</span><br><span class="line">    <span class="keyword">val</span> sc = <span class="keyword">new</span> <span class="type">SparkContext</span>(<span class="string">"local"</span>,<span class="string">"stageNameTest"</span>)</span><br><span class="line">    <span class="keyword">val</span> rdd = sc.parallelize(<span class="number">1</span> to <span class="number">100</span>, <span class="number">5</span>)</span><br><span class="line">    println(rdd.count())</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h4 id="rdd的creationSiteInfo"><a href="#rdd的creationSiteInfo" class="headerlink" title="rdd的creationSiteInfo"></a>rdd的creationSiteInfo</h4><p>在sc.parallelize(1 to 100, 5)时会生成ParallelCollectionRDD，其creationSiteInfo的调用栈为：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">org.apache.spark.util.Utils$.getCallSiteInfo(Utils.scala:<span class="number">817</span>)</span><br><span class="line">org.apache.spark.rdd.RDD.&lt;init&gt;(RDD.scala:<span class="number">1137</span>)</span><br><span class="line">org.apache.spark.rdd.ParallelCollectionRDD.&lt;init&gt;(ParallelCollectionRDD.scala:<span class="number">85</span>)</span><br><span class="line">org.apache.spark.SparkContext.parallelize(SparkContext.scala:<span class="number">436</span>)</span><br><span class="line">StageNameTest$.main(StageNameTest.scala:<span class="number">11</span>)  <span class="comment">//由于代码没贴全，所以linenumber=11是我代码中的位置</span></span><br><span class="line">StageNameTest.main(StageNameTest.scala)</span><br></pre></td></tr></table></figure></p>
+<p>调用栈由内向外查找className满足SPARK_CLASS_REGEX正则的最外层调用，这里就是：</p>
 <pre><code>org.apache.spark.SparkContext.parallelize(SparkContext.scala:436)
 </code></pre><p>所以lastSparkMethod=parallelize,  其下一个调用就是firstUserFile, firstUserLine，即firstUserFile=StageNameTest, firstUserLine=11<br>所以该rdd的creationSiteInfo为 parallelize at StageNameTest:11</p>
-<h4 id="action-finalStage的callSite"><a href="#action-finalStage的callSite" class="headerlink" title="action/finalStage的callSite"></a>action/finalStage的callSite</h4><p>例子中rdd.count()会在runJob中生成callSite，此调用栈为：</p>
-<pre><code>org.apache.spark.util.Utils$.getCallSiteInfo(Utils.scala:817)
-org.apache.spark.SparkContext.getCallSite(SparkContext.scala:1025)
-org.apache.spark.SparkContext.runJob(SparkContext.scala:1044)
-org.apache.spark.SparkContext.runJob(SparkContext.scala:1066)
-org.apache.spark.SparkContext.runJob(SparkContext.scala:1080)
-org.apache.spark.SparkContext.runJob(SparkContext.scala:1094)
-org.apache.spark.rdd.RDD.count(RDD.scala:847)
-StageNameTest$.main(StageNameTest.scala:12)
-StageNameTest.main(StageNameTest.scala)
-</code></pre><p>满足要求的最外层调用是 org.apache.spark.rdd.RDD.count(RDD.scala:847)，lastSparkMethod=count, firstUserFile=StageNameTest, firstUserLine=12。<br>callSite的名称为： count at StageNameTest:12.</p>
+<h4 id="action-finalStage的callSite"><a href="#action-finalStage的callSite" class="headerlink" title="action/finalStage的callSite"></a>action/finalStage的callSite</h4><p>例子中rdd.count()会在runJob中生成callSite，此调用栈为：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">org.apache.spark.util.Utils$.getCallSiteInfo(Utils.scala:<span class="number">817</span>)</span><br><span class="line">org.apache.spark.SparkContext.getCallSite(SparkContext.scala:<span class="number">1025</span>)</span><br><span class="line">org.apache.spark.SparkContext.runJob(SparkContext.scala:<span class="number">1044</span>)</span><br><span class="line">org.apache.spark.SparkContext.runJob(SparkContext.scala:<span class="number">1066</span>)</span><br><span class="line">org.apache.spark.SparkContext.runJob(SparkContext.scala:<span class="number">1080</span>)</span><br><span class="line">org.apache.spark.SparkContext.runJob(SparkContext.scala:<span class="number">1094</span>)</span><br><span class="line">org.apache.spark.rdd.RDD.count(RDD.scala:<span class="number">847</span>)</span><br><span class="line">StageNameTest$.main(StageNameTest.scala:<span class="number">12</span>)</span><br><span class="line">StageNameTest.main(StageNameTest.scala)</span><br></pre></td></tr></table></figure></p>
+<p>满足要求的最外层调用是 org.apache.spark.rdd.RDD.count(RDD.scala:847)，lastSparkMethod=count, firstUserFile=StageNameTest, firstUserLine=12。<br>callSite的名称为： count at StageNameTest:12.</p>
 <h3 id="combineByKey"><a href="#combineByKey" class="headerlink" title="combineByKey"></a>combineByKey</h3><p>接下来以常见的combineByKey方法生成的stage的名称为例子。<br>combineByKey中生成了三个RDD(mapSideCombine=true的情况)：MapPartitionsRDD[1]、ShuffledRDD[2]、MapPartitionsRDD[3]。可知MapPartitionsRDD[1]为一个stage。该stage由于不是finalStage，所以其会使用MapPartitionsRDD[1]的creationSiteInfo，即 combineByKey at StageNameTest:12。具体如下所示。</p>
-<p>调用栈为：</p>
-<pre><code>org.apache.spark.util.Utils$.getCallSiteInfo(Utils.scala:817)
-org.apache.spark.rdd.RDD.&lt;init&gt;(RDD.scala:1137)
-org.apache.spark.rdd.RDD.&lt;init&gt;(RDD.scala:83)
-org.apache.spark.rdd.MapPartitionsRDD.&lt;init&gt;(MapPartitionsRDD.scala:24)
-org.apache.spark.rdd.RDD.mapPartitionsWithContext(RDD.scala:583)
-org.apache.spark.rdd.PairRDDFunctions.combineByKey(PairRDDFunctions.scala:95)
-org.apache.spark.rdd.PairRDDFunctions.combineByKey(PairRDDFunctions.scala:360)
-StageNameTest$.main(StageNameTest.scala:12)
-StageNameTest.main(StageNameTest.scala)
-</code></pre><p>可知最外层调用为org.apache.spark.rdd.PairRDDFunctions.combineByKey(PairRDDFunctions.scala:360)， 所以lastSparkMethod=combineByKey, firstUserFile=StageNameTest, firstUserLine=12。</p>
+<p>调用栈为：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">org.apache.spark.util.Utils$.getCallSiteInfo(Utils.scala:<span class="number">817</span>)</span><br><span class="line">org.apache.spark.rdd.RDD.&lt;init&gt;(RDD.scala:<span class="number">1137</span>)</span><br><span class="line">org.apache.spark.rdd.RDD.&lt;init&gt;(RDD.scala:<span class="number">83</span>)</span><br><span class="line">org.apache.spark.rdd.MapPartitionsRDD.&lt;init&gt;(MapPartitionsRDD.scala:<span class="number">24</span>)</span><br><span class="line">org.apache.spark.rdd.RDD.mapPartitionsWithContext(RDD.scala:<span class="number">583</span>)</span><br><span class="line">org.apache.spark.rdd.PairRDDFunctions.combineByKey(PairRDDFunctions.scala:<span class="number">95</span>)</span><br><span class="line">org.apache.spark.rdd.PairRDDFunctions.combineByKey(PairRDDFunctions.scala:<span class="number">360</span>)</span><br><span class="line">StageNameTest$.main(StageNameTest.scala:<span class="number">12</span>)</span><br><span class="line">StageNameTest.main(StageNameTest.scala)</span><br></pre></td></tr></table></figure></p>
+<p>可知最外层调用为org.apache.spark.rdd.PairRDDFunctions.combineByKey(PairRDDFunctions.scala:360)， 所以lastSparkMethod=combineByKey, firstUserFile=StageNameTest, firstUserLine=12。</p>
 <h3 id="AUC计算中的BinaryClassificationMetrics-confusions"><a href="#AUC计算中的BinaryClassificationMetrics-confusions" class="headerlink" title="AUC计算中的BinaryClassificationMetrics.confusions"></a>AUC计算中的BinaryClassificationMetrics.confusions</h3>  
 	</div>
 		<footer class="article-footer clearfix">
@@ -306,14 +272,6 @@ StageNameTest.main(StageNameTest.scala)
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -322,15 +280,23 @@ StageNameTest.main(StageNameTest.scala)
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -342,6 +308,14 @@ StageNameTest.main(StageNameTest.scala)
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -350,19 +324,11 @@ StageNameTest.main(StageNameTest.scala)
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -375,7 +341,7 @@ StageNameTest.main(StageNameTest.scala)
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

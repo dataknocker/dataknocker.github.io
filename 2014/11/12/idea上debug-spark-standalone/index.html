@@ -22,7 +22,7 @@
 <meta property="og:image" content="http://yoursite.com/img/spark/debug/findremote.png">
 <meta property="og:image" content="http://yoursite.com/img/spark/debug/debugset.png">
 <meta property="og:image" content="http://yoursite.com/img/spark/debug/run.png">
-<meta property="og:updated_time" content="2014-11-12T04:11:24.000Z">
+<meta property="og:updated_time" content="2018-01-01T02:18:17.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="idea上debug spark standalone">
 <meta name="twitter:description" content="引言debug spark可谓是研究spark源码的利器。spark local模式和其他分布式模式有很大不同，虽然可以在local模式下进行debug，但有很多东西只有在分布式模式下才有用。本文主要介绍在idea上如何remote debug spark的standalone模式的四大部分：Master、Worker、Driver、Executor(yarn模式比较复杂，还需要结合yarn的de">
@@ -113,50 +113,21 @@
 		<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>debug spark可谓是研究spark源码的利器。spark local模式和其他分布式模式有很大不同，虽然可以在local模式下进行debug，但有很多东西只有在分布式模式下才有用。本文主要介绍在idea上如何remote debug spark的standalone模式的四大部分：Master、Worker、Driver、Executor(yarn模式比较复杂，还需要结合yarn的debug模式才能搞定，但研究standalone已经可以搞清楚spark的大部分原理了)。</p>
 <h2 id="主要思想"><a href="#主要思想" class="headerlink" title="主要思想"></a>主要思想</h2><p>1、spark-class: 像Master、Worker、Driver都是通过spark-class脚本进行启动各自的jvm(Driver其实是间接由spark-class启动，提交程序时以spark-class启动SparkSubmit,然后SparkSubmit以反射的形式调用Driver的main方法从而实现driver的运行)。<br>spark-class中设置了各jvm的参数，所以可以在这些参数中加入debug的相关参数。<br>2、Executor即CoarseGrainedExecutorBackend的参数在spark-class脚本中修改没用，因为其不是通过spark-class启动的，其是被ExecutorRunner启动，在buildCommandSeq-&gt;buildJavaOpts对相应参数进行设置，比如固定MaxPermSize=128m等。可以在SparkConf中设置spark.executor.extraJavaOptions参数。</p>
 <p>##具体操作</p>
-<h3 id="spark-class的修改"><a href="#spark-class的修改" class="headerlink" title="spark-class的修改"></a>spark-class的修改</h3><p>修改spark/bin/spark-class文件：<br>都是在OUR_JAVA_OPTS中加入了</p>
-<pre><code>-Xdebug -Xrunjdwp:transport=dt_socket,address=8002,server=y,suspend=n
-</code></pre><p>具体见:</p>
-<pre><code>&apos;org.apache.spark.deploy.master.Master&apos;)
-      OUR_JAVA_OPTS=&quot;$SPARK_DAEMON_JAVA_OPTS $SPARK_MASTER_OPTS -Xdebug -Xrunjdwp:transport=dt_socket,address=8002,server=y,suspend=n&quot;
-      OUR_JAVA_MEM=${SPARK_DAEMON_MEMORY:-$DEFAULT_MEM}
-      ;;
-&apos;org.apache.spark.deploy.worker.Worker&apos;)
-    OUR_JAVA_OPTS=&quot;$SPARK_DAEMON_JAVA_OPTS $SPARK_WORKER_OPTS -Xdebug -Xrunjdwp:transport=dt_socket,address=8003,server=y,suspend=n&quot;
-    OUR_JAVA_MEM=${SPARK_DAEMON_MEMORY:-$DEFAULT_MEM}
-
-&apos;org.apache.spark.deploy.SparkSubmit&apos;)
-    OUR_JAVA_OPTS=&quot;$SPARK_JAVA_OPTS $SPARK_SUBMIT_OPTS -Xdebug -Xrunjdwp:transport=dt_socket,address=8004,server=y,suspend=n&quot;
-    OUR_JAVA_MEM=${SPARK_DRIVER_MEMORY:-$DEFAULT_MEM}
-</code></pre><p>这样也可以对HistoryServer等进行这样的debug。</p>
-<h3 id="Executor-debug配置"><a href="#Executor-debug配置" class="headerlink" title="Executor debug配置"></a>Executor debug配置</h3><p>直接在sparkConf中进行设置：</p>
-<pre><code>sparkConf.setAppName(&quot;sparktest&quot;).set(&quot;spark.executor.extraJavaOptions&quot;, &quot;-Xdebug -Xrunjdwp:transport=dt_socket,address=8005,server=y,suspend=n&quot;)
-</code></pre><h3 id="启动standalone"><a href="#启动standalone" class="headerlink" title="启动standalone"></a>启动standalone</h3><p>本机既作为master又作为worker，这样所有操作其实都是在本机上操作的，(当然有耐心的话，可以搞搞多台机器上的)。<br>1、启动master:在spark/sbin下启动</p>
-<pre><code>$SPARK_HOME/sbin/start-master.sh
-</code></pre><p>2、启动worker:</p>
-<pre><code>$SPARK_HOME/bin/spark-class org.apache.spark.deploy.worker.Worker spark://localhost:7077
-</code></pre><p>查看Master和Worker进程，可以看到remote debug已经打开</p>
-<pre><code>/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home/bin/java -cp ::/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/conf:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/spark-assembly-1.1.0-hadoop2.3.0.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-api-jdo-3.2.1.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-core-3.2.2.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-rdbms-3.2.1.jar -XX:MaxPermSize=128m -Dspark.akka.logLifecycleEvents=true -Xdebug -Xrunjdwp:transport=dt_socket,address=8003,server=y,suspend=n -Xms512m -Xmx512m org.apache.spark.deploy.worker.Worker spark://localhost:7077
-</code></pre><h3 id="idea上监听master和worker"><a href="#idea上监听master和worker" class="headerlink" title="idea上监听master和worker"></a>idea上监听master和worker</h3><p>spark 1.1源码已经导入idea工程中，在idea的Run/Debug config进行debug端口的设置。具体见下面的图。<br><img src="../../../../img/spark/debug/editconfig.png" alt="Edit Configurations"></p>
+<h3 id="spark-class的修改"><a href="#spark-class的修改" class="headerlink" title="spark-class的修改"></a>spark-class的修改</h3><p>修改spark/bin/spark-class文件：<br>都是在OUR_JAVA_OPTS中加入了<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-Xdebug -Xrunjdwp:transport=dt_socket,address=8002,server=y,<span class="built_in">suspend</span>=n</span><br></pre></td></tr></table></figure></p>
+<p>具体见:<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">'org.apache.spark.deploy.master.Master'</span>)</span><br><span class="line">  	OUR_JAVA_OPTS=<span class="string">"<span class="variable">$SPARK_DAEMON_JAVA_OPTS</span> <span class="variable">$SPARK_MASTER_OPTS</span> -Xdebug -Xrunjdwp:transport=dt_socket,address=8002,server=y,suspend=n"</span></span><br><span class="line">  	OUR_JAVA_MEM=<span class="variable">$&#123;SPARK_DAEMON_MEMORY:-$DEFAULT_MEM&#125;</span></span><br><span class="line">  	;;</span><br><span class="line"><span class="string">'org.apache.spark.deploy.worker.Worker'</span>)</span><br><span class="line">    OUR_JAVA_OPTS=<span class="string">"<span class="variable">$SPARK_DAEMON_JAVA_OPTS</span> <span class="variable">$SPARK_WORKER_OPTS</span> -Xdebug -Xrunjdwp:transport=dt_socket,address=8003,server=y,suspend=n"</span></span><br><span class="line">    OUR_JAVA_MEM=<span class="variable">$&#123;SPARK_DAEMON_MEMORY:-$DEFAULT_MEM&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="string">'org.apache.spark.deploy.SparkSubmit'</span>)</span><br><span class="line">	OUR_JAVA_OPTS=<span class="string">"<span class="variable">$SPARK_JAVA_OPTS</span> <span class="variable">$SPARK_SUBMIT_OPTS</span> -Xdebug -Xrunjdwp:transport=dt_socket,address=8004,server=y,suspend=n"</span></span><br><span class="line">	OUR_JAVA_MEM=<span class="variable">$&#123;SPARK_DRIVER_MEMORY:-$DEFAULT_MEM&#125;</span></span><br></pre></td></tr></table></figure></p>
+<p>这样也可以对HistoryServer等进行这样的debug。</p>
+<h3 id="Executor-debug配置"><a href="#Executor-debug配置" class="headerlink" title="Executor debug配置"></a>Executor debug配置</h3><p>直接在sparkConf中进行设置：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sparkConf.setAppName(<span class="string">"sparktest"</span>).set(<span class="string">"spark.executor.extraJavaOptions"</span>, <span class="string">"-Xdebug -Xrunjdwp:transport=dt_socket,address=8005,server=y,suspend=n"</span>)</span><br></pre></td></tr></table></figure></p>
+<h3 id="启动standalone"><a href="#启动standalone" class="headerlink" title="启动standalone"></a>启动standalone</h3><p>本机既作为master又作为worker，这样所有操作其实都是在本机上操作的，(当然有耐心的话，可以搞搞多台机器上的)。<br>1、启动master:在spark/sbin下启动<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">$SPARK_HOME</span>/sbin/start-master.sh</span><br></pre></td></tr></table></figure></p>
+<p>2、启动worker:<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">$SPARK_HOME</span>/bin/spark-class org.apache.spark.deploy.worker.Worker spark://localhost:7077</span><br></pre></td></tr></table></figure></p>
+<p>查看Master和Worker进程，可以看到remote debug已经打开<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home/bin/java -cp ::/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/conf:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/spark-assembly-1.1.0-hadoop2.3.0.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-api-jdo-3.2.1.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-core-3.2.2.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-rdbms-3.2.1.jar -XX:MaxPermSize=128m -Dspark.akka.logLifecycleEvents=<span class="literal">true</span> -Xdebug -Xrunjdwp:transport=dt_socket,address=8003,server=y,<span class="built_in">suspend</span>=n -Xms512m -Xmx512m org.apache.spark.deploy.worker.Worker spark://localhost:7077</span><br></pre></td></tr></table></figure></p>
+<h3 id="idea上监听master和worker"><a href="#idea上监听master和worker" class="headerlink" title="idea上监听master和worker"></a>idea上监听master和worker</h3><p>spark 1.1源码已经导入idea工程中，在idea的Run/Debug config进行debug端口的设置。具体见下面的图。<br><img src="../../../../img/spark/debug/editconfig.png" alt="Edit Configurations"></p>
 <p><img src="../../../../img/spark/debug/findremote.png" alt="Add Remote"></p>
 <p><img src="../../../../img/spark/debug/debugset.png" alt="Set Remote Debug"></p>
 <p>Master、Worker、Driver、Executor都是这样的设置方法。</p>
 <p>启动master、worker的remote debug:</p>
 <p><img src="../../../../img/spark/debug/run.png" alt="Run Remote Debug"><br>选择相应debug,然后点debug按钮。</p>
-<h3 id="监听driver"><a href="#监听driver" class="headerlink" title="监听driver"></a>监听driver</h3><pre><code>object Main {
-  def main(args: Array[String]) {
-    val sparkConf = new SparkConf()
-    sparkConf.setAppName(&quot;sparktest&quot;).set(&quot;spark.executor.extraJavaOptions&quot;, &quot;-Xdebug -Xrunjdwp:transport=dt_socket,address=8005,server=y,suspend=n&quot;)
-    println(&quot;sleep begin.&quot;)
-    Thread.sleep(10000) //等待10s，让有足够时间启动driver的remote debug
-    println(&quot;sleep end.&quot;)
-    val sc = new SparkContext(sparkConf)
-
-    val rdd = sc.parallelize(1 to 10000, 10)
-    val count = rdd.reduce(_ + _)
-    println(count)
-  }
-}
-</code></pre><p>运行到driver的main方法时，我在代码中加入了sleep 10s，便于有足够时间启动driver的remote debug。<br>这样就可以debug我们的应用程序了。</p>
+<h3 id="监听driver"><a href="#监听driver" class="headerlink" title="监听driver"></a>监听driver</h3><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">object</span> <span class="title">Main</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">main</span></span>(args: <span class="type">Array</span>[<span class="type">String</span>]) &#123;</span><br><span class="line">    <span class="keyword">val</span> sparkConf = <span class="keyword">new</span> <span class="type">SparkConf</span>()</span><br><span class="line">    sparkConf.setAppName(<span class="string">"sparktest"</span>).set(<span class="string">"spark.executor.extraJavaOptions"</span>, <span class="string">"-Xdebug -Xrunjdwp:transport=dt_socket,address=8005,server=y,suspend=n"</span>)</span><br><span class="line">    println(<span class="string">"sleep begin."</span>)</span><br><span class="line">    <span class="type">Thread</span>.sleep(<span class="number">10000</span>) <span class="comment">//等待10s，让有足够时间启动driver的remote debug</span></span><br><span class="line">    println(<span class="string">"sleep end."</span>)</span><br><span class="line">    <span class="keyword">val</span> sc = <span class="keyword">new</span> <span class="type">SparkContext</span>(sparkConf)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">val</span> rdd = sc.parallelize(<span class="number">1</span> to <span class="number">10000</span>, <span class="number">10</span>)</span><br><span class="line">    <span class="keyword">val</span> count = rdd.reduce(_ + _)</span><br><span class="line">    println(count)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行到driver的main方法时，我在代码中加入了sleep 10s，便于有足够时间启动driver的remote debug。<br>这样就可以debug我们的应用程序了。</p>
 <h3 id="监听Executor"><a href="#监听Executor" class="headerlink" title="监听Executor"></a>监听Executor</h3><p>当executor，具体是CoarseGrainedExecutorBackend被Worker启动时(可以看worker上控制台的日志中是否已经有启动CoarseGrainedExecutorBackend的语句，或在driver多设几个断点从而有足够时间来监听executor)。选择executor进行remote debug。</p>
 <h3 id="注意点"><a href="#注意点" class="headerlink" title="注意点"></a>注意点</h3><p>1、因为debug会使程序停顿比较久时间，所以有可能程序会出现超时、失去联结等错误。<br>2、在debug过程中，可以访问<a href="http://localhost:8080" target="_blank" rel="noopener">http://localhost:8080</a> 来看运行页面<br>3、目前是在单机上模拟standalone，没有对hdfs等进行配置，所以都是通过sc.parallelize来进行数据获取。</p>
   
@@ -302,14 +273,6 @@
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -318,15 +281,23 @@
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -338,6 +309,14 @@
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -346,19 +325,11 @@
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -371,7 +342,7 @@
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

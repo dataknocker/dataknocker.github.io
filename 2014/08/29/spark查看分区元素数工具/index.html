@@ -11,17 +11,17 @@
     
 
     
-    <meta name="description" content="spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法： object RDDUtils {   def getPartitionCounts[T](sc : SparkContext, rdd : RDD[T]) : Array[Long">
+    <meta name="description" content="spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法：12345678910111213object RDDUtils &amp;#123;  def getPartitionCounts[T](sc : SparkContext, rdd :">
 <meta name="keywords" content="spark">
 <meta property="og:type" content="article">
 <meta property="og:title" content="spark查看分区元素数工具">
 <meta property="og:url" content="http://yoursite.com/2014/08/29/spark查看分区元素数工具/index.html">
 <meta property="og:site_name" content="DataKnocker">
-<meta property="og:description" content="spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法： object RDDUtils {   def getPartitionCounts[T](sc : SparkContext, rdd : RDD[T]) : Array[Long">
-<meta property="og:updated_time" content="2014-08-28T21:16:48.000Z">
+<meta property="og:description" content="spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法：12345678910111213object RDDUtils &amp;#123;  def getPartitionCounts[T](sc : SparkContext, rdd :">
+<meta property="og:updated_time" content="2018-01-01T02:16:35.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="spark查看分区元素数工具">
-<meta name="twitter:description" content="spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法： object RDDUtils {   def getPartitionCounts[T](sc : SparkContext, rdd : RDD[T]) : Array[Long">
+<meta name="twitter:description" content="spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法：12345678910111213object RDDUtils &amp;#123;  def getPartitionCounts[T](sc : SparkContext, rdd :">
 
     
     <link rel="alternative" href="/atom.xml" title="DataKnocker" type="application/atom+xml">
@@ -105,24 +105,9 @@
 		
 		</div>
 		
-		<p>spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法：</p>
-<pre><code>object RDDUtils {
-  def getPartitionCounts[T](sc : SparkContext, rdd : RDD[T]) : Array[Long] = {
-    sc.runJob(rdd, getIteratorSize _)
-  }
-  def getIteratorSize[T](iterator: Iterator[T]): Long = {
-    var count = 0L
-    while (iterator.hasNext) {
-      count += 1L
-      iterator.next()
-    }
-    count
-  }
-}
-</code></pre><p>example:</p>
-<pre><code>val rdd = sc.parallelize(Array((&quot;A&quot;,1),(&quot;A&quot;,1),(&quot;A&quot;,1),(&quot;A&quot;,1),(&quot;A&quot;,1)), 2)
-RDDUtils.getPartitionCounts(sc, rdd).foreach(println)
-</code></pre>  
+		<p>spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">object</span> <span class="title">RDDUtils</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">getPartitionCounts</span></span>[<span class="type">T</span>](sc : <span class="type">SparkContext</span>, rdd : <span class="type">RDD</span>[<span class="type">T</span>]) : <span class="type">Array</span>[<span class="type">Long</span>] = &#123;</span><br><span class="line">    sc.runJob(rdd, getIteratorSize _)</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">getIteratorSize</span></span>[<span class="type">T</span>](iterator: <span class="type">Iterator</span>[<span class="type">T</span>]): <span class="type">Long</span> = &#123;</span><br><span class="line">    <span class="keyword">var</span> count = <span class="number">0</span>L</span><br><span class="line">    <span class="keyword">while</span> (iterator.hasNext) &#123;</span><br><span class="line">      count += <span class="number">1</span>L</span><br><span class="line">      iterator.next()</span><br><span class="line">    &#125;</span><br><span class="line">    count</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>example:<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> rdd = sc.parallelize(<span class="type">Array</span>((<span class="string">"A"</span>,<span class="number">1</span>),(<span class="string">"A"</span>,<span class="number">1</span>),(<span class="string">"A"</span>,<span class="number">1</span>),(<span class="string">"A"</span>,<span class="number">1</span>),(<span class="string">"A"</span>,<span class="number">1</span>)), <span class="number">2</span>)</span><br><span class="line"><span class="type">RDDUtils</span>.getPartitionCounts(sc, rdd).foreach(println)</span><br></pre></td></tr></table></figure></p>
+  
 	</div>
 		<footer class="article-footer clearfix">
 <div class="article-catetags">
@@ -273,14 +258,6 @@ RDDUtils.getPartitionCounts(sc, rdd).foreach(println)
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -289,15 +266,23 @@ RDDUtils.getPartitionCounts(sc, rdd).foreach(println)
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -309,6 +294,14 @@ RDDUtils.getPartitionCounts(sc, rdd).foreach(println)
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -317,19 +310,11 @@ RDDUtils.getPartitionCounts(sc, rdd).foreach(println)
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -342,7 +327,7 @@ RDDUtils.getPartitionCounts(sc, rdd).foreach(println)
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

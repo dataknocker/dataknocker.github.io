@@ -18,7 +18,7 @@
 <meta property="og:url" content="http://yoursite.com/2014/10/11/idea上运行local的spark-sql-hive/index.html">
 <meta property="og:site_name" content="DataKnocker">
 <meta property="og:description" content="在本机上通过idea跑spark sql进行hive查询等操作，一方面可以用于debug spark sql相关源码，另一方面可以加快开发测试进度，比如添加Udf等。这里总共两步：1、安装hive remote metastore模式 2、idea上的相关配置开发 hive 0.13安装 remote metastore服务器test01作为remote端,test02作为client端, tes">
-<meta property="og:updated_time" content="2014-10-20T22:05:34.000Z">
+<meta property="og:updated_time" content="2018-01-01T02:18:28.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="idea上运行local的spark sql hive">
 <meta name="twitter:description" content="在本机上通过idea跑spark sql进行hive查询等操作，一方面可以用于debug spark sql相关源码，另一方面可以加快开发测试进度，比如添加Udf等。这里总共两步：1、安装hive remote metastore模式 2、idea上的相关配置开发 hive 0.13安装 remote metastore服务器test01作为remote端,test02作为client端, tes">
@@ -106,148 +106,14 @@
 		</div>
 		
 		<p>在本机上通过idea跑spark sql进行hive查询等操作，一方面可以用于debug spark sql相关源码，另一方面可以加快开发测试进度，比如添加Udf等。<br>这里总共两步：1、安装hive remote metastore模式 2、idea上的相关配置开发</p>
-<h2 id="hive-0-13安装-remote-metastore"><a href="#hive-0-13安装-remote-metastore" class="headerlink" title="hive 0.13安装 remote metastore"></a>hive 0.13安装 remote metastore</h2><p>服务器test01作为remote端,test02作为client端, test02也需要有hadooop环境(和test01一样)<br>1、下载hive 0.13并解压<br>2、test01上配置hive-site.xml,加入mysql相关 (包括将mysql connect包放到lib中)</p>
-<pre><code>&lt;?xml version=&quot;1.0&quot;?&gt;  
-&lt;?xml-stylesheet type=&quot;text/xsl&quot; href=&quot;configuration.xsl&quot;?&gt;  
-
-&lt;configuration&gt;  
-
-&lt;property&gt;  
-  &lt;name&gt;hive.metastore.warehouse.dir&lt;/name&gt;  
-  &lt;value&gt;/user/hive/warehouse&lt;/value&gt;  
-&lt;/property&gt;  
-
-&lt;property&gt;  
-  &lt;name&gt;javax.jdo.option.ConnectionURL&lt;/name&gt;  
-  &lt;value&gt;jdbc:mysql://test01:3306/hive?createDatabaseIfNotExist=true&lt;/value&gt;  
-&lt;/property&gt;  
-
-&lt;property&gt;  
-  &lt;name&gt;javax.jdo.option.ConnectionDriverName&lt;/name&gt;  
-  &lt;value&gt;com.mysql.jdbc.Driver&lt;/value&gt;  
-&lt;/property&gt;  
-
-&lt;property&gt;  
-  &lt;name&gt;javax.jdo.option.ConnectionUserName&lt;/name&gt;  
-  &lt;value&gt;hive&lt;/value&gt;  
-&lt;/property&gt;  
-
-&lt;property&gt;  
-  &lt;name&gt;javax.jdo.option.ConnectionPassword&lt;/name&gt;  
-  &lt;value&gt;password&lt;/value&gt;  
-&lt;/property&gt;
-</code></pre><p>3、启动test01上的metastore server: nohup hive - -service metastore&gt; metastore.log 2&gt;&amp;1 &amp;<br>   默认端口为9083<br>4、配置test02上的hive-site.xml</p>
-<pre><code>&lt;?xml version=&quot;1.0&quot;?&gt;
-&lt;?xml-stylesheet type=&quot;text/xsl&quot; href=&quot;configuration.xsl&quot;?&gt;
-&lt;configuration&gt;
-    &lt;property&gt;
-        &lt;name&gt;hive.metastore.warehouse.dir&lt;/name&gt;
-        &lt;value&gt;/user/hive/warehouse&lt;/value&gt;
-    &lt;/property&gt;
-
-    &lt;property&gt;
-        &lt;name&gt;hive.metastore.local&lt;/name&gt;
-        &lt;value&gt;false&lt;/value&gt;
-    &lt;/property&gt;
-
-    &lt;property&gt;
-        &lt;name&gt;hive.metastore.uris&lt;/name&gt;
-        &lt;value&gt;thrift://test01:9083&lt;/value&gt;
-    &lt;/property&gt;
-&lt;/configuration&gt;
-</code></pre><p>这样test02上通过hive就可以访问test01上的了</p>
-<h2 id="idea上运行local的spark-sql"><a href="#idea上运行local的spark-sql" class="headerlink" title="idea上运行local的spark sql"></a>idea上运行local的spark sql</h2><p>前提：本机上的hive client可以使用, 同时我这里用了hadoop2.2版本<br>我使用的是maven 工程, pom.xml如下：</p>
-<pre><code>&lt;dependencies&gt;
-    &lt;dependency&gt;
-        &lt;groupId&gt;org.apache.spark&lt;/groupId&gt;
-        &lt;artifactId&gt;spark-core_2.10&lt;/artifactId&gt;
-        &lt;version&gt;1.1.0&lt;/version&gt;
-
-        &lt;exclusions&gt;
-            &lt;exclusion&gt;
-            &lt;!--默认是1.0.4版本，要去掉--&gt;
-                &lt;groupId&gt;org.apache.hadoop&lt;/groupId&gt;
-                &lt;artifactId&gt;hadoop-client&lt;/artifactId&gt;
-            &lt;/exclusion&gt;
-        &lt;/exclusions&gt;
-    &lt;/dependency&gt;
-    &lt;!-- 引入和hadoop集群相同版本的--&gt;
-    &lt;dependency&gt;
-        &lt;groupId&gt;org.apache.hadoop&lt;/groupId&gt;
-        &lt;artifactId&gt;hadoop-client&lt;/artifactId&gt;
-        &lt;version&gt;2.2.0&lt;/version&gt;
-    &lt;/dependency&gt;
-    &lt;dependency&gt;
-        &lt;groupId&gt;org.apache.spark&lt;/groupId&gt;
-        &lt;artifactId&gt;spark-mllib_2.10&lt;/artifactId&gt;
-        &lt;version&gt;1.1.0&lt;/version&gt;
-    &lt;/dependency&gt;
-    &lt;dependency&gt;
-        &lt;groupId&gt;org.apache.spark&lt;/groupId&gt;
-        &lt;artifactId&gt;spark-sql_2.10&lt;/artifactId&gt;
-        &lt;version&gt;1.1.0&lt;/version&gt;
-    &lt;/dependency&gt;
-    &lt;dependency&gt;
-        &lt;groupId&gt;org.apache.spark&lt;/groupId&gt;
-        &lt;artifactId&gt;spark-hive_2.10&lt;/artifactId&gt;
-        &lt;version&gt;1.1.0&lt;/version&gt;
-    &lt;/dependency&gt;
-&lt;/dependencies&gt;
-
-&lt;build&gt;
-    &lt;plugins&gt;
-        &lt;plugin&gt;
-            &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
-            &lt;artifactId&gt;maven-source-plugin&lt;/artifactId&gt;
-            &lt;version&gt;2.2.1&lt;/version&gt;
-            &lt;executions&gt;
-                &lt;execution&gt;
-                    &lt;id&gt;attach-sources&lt;/id&gt;
-                    &lt;phase&gt;package&lt;/phase&gt;
-                    &lt;goals&gt;
-                        &lt;goal&gt;jar&lt;/goal&gt;
-                    &lt;/goals&gt;
-                &lt;/execution&gt;
-            &lt;/executions&gt;
-        &lt;/plugin&gt;
-        &lt;plugin&gt;
-            &lt;groupId&gt;net.alchim31.maven&lt;/groupId&gt;
-            &lt;artifactId&gt;scala-maven-plugin&lt;/artifactId&gt;
-            &lt;version&gt;3.1.0&lt;/version&gt;
-            &lt;executions&gt;
-                &lt;execution&gt;
-                    &lt;id&gt;compile-scala&lt;/id&gt;
-                    &lt;phase&gt;compile&lt;/phase&gt;
-                    &lt;goals&gt;
-                        &lt;goal&gt;add-source&lt;/goal&gt;
-                        &lt;goal&gt;compile&lt;/goal&gt;
-                    &lt;/goals&gt;
-                &lt;/execution&gt;
-                &lt;execution&gt;
-                    &lt;id&gt;test-compile-scala&lt;/id&gt;
-                    &lt;phase&gt;test-compile&lt;/phase&gt;
-                    &lt;goals&gt;
-                        &lt;goal&gt;add-source&lt;/goal&gt;
-                        &lt;goal&gt;testCompile&lt;/goal&gt;
-                    &lt;/goals&gt;
-                &lt;/execution&gt;
-            &lt;/executions&gt;
-        &lt;/plugin&gt;
-    &lt;/plugins&gt;
-&lt;/build&gt;
-</code></pre><p>将hive client的hive-site.xml放到resources目录下，这样就可以访问远程的hive metadata了。</p>
-<p>Test程序：</p>
-<pre><code>object Test{
-  def main(args:Array[String]): Unit = {
-    val sc = new SparkContext(&quot;local&quot;, &quot;test&quot;)
-    val hiveContext = new HiveContext(sc)
-    val rdd = hiveContext.sql(&quot;select * from test&quot;)
-    rdd.collect().foreach(println)
-  }
-}
-</code></pre><p>运行时有可能报：</p>
-<pre><code>Exception in thread &quot;main&quot; org.apache.hadoop.ipc.RemoteException: Server IPC version 9 cannot communicate with client version 4
-</code></pre><p>这是因为org.apache.spark默认使用的是hadoop-client-1.0.4, 而我的hadoop是2.2.0, 所以版本不一致，解决方法是将hadoop-client-1.0.4改成hadoop-2.2.0， 解决方法已经在上面的pom.xml中加入了。</p>
+<h2 id="hive-0-13安装-remote-metastore"><a href="#hive-0-13安装-remote-metastore" class="headerlink" title="hive 0.13安装 remote metastore"></a>hive 0.13安装 remote metastore</h2><p>服务器test01作为remote端,test02作为client端, test02也需要有hadooop环境(和test01一样)<br>1、下载hive 0.13并解压<br>2、test01上配置hive-site.xml,加入mysql相关 (包括将mysql connect包放到lib中)<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">&lt;?xml version="1.0"?&gt;  </span><br><span class="line">&lt;?xml-stylesheet type="text/xsl" href="configuration.xsl"?&gt;  </span><br><span class="line">   </span><br><span class="line"><span class="tag">&lt;<span class="name">configuration</span>&gt;</span>  </span><br><span class="line">  </span><br><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>hive.metastore.warehouse.dir<span class="tag">&lt;/<span class="name">name</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>/user/hive/warehouse<span class="tag">&lt;/<span class="name">value</span>&gt;</span>  </span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span>  </span><br><span class="line">   </span><br><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>javax.jdo.option.ConnectionURL<span class="tag">&lt;/<span class="name">name</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>jdbc:mysql://test01:3306/hive?createDatabaseIfNotExist=true<span class="tag">&lt;/<span class="name">value</span>&gt;</span>  </span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span>  </span><br><span class="line">   </span><br><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>javax.jdo.option.ConnectionDriverName<span class="tag">&lt;/<span class="name">name</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>com.mysql.jdbc.Driver<span class="tag">&lt;/<span class="name">value</span>&gt;</span>  </span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span>  </span><br><span class="line">   </span><br><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>javax.jdo.option.ConnectionUserName<span class="tag">&lt;/<span class="name">name</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>hive<span class="tag">&lt;/<span class="name">value</span>&gt;</span>  </span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span>  </span><br><span class="line">   </span><br><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>javax.jdo.option.ConnectionPassword<span class="tag">&lt;/<span class="name">name</span>&gt;</span>  </span><br><span class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>password<span class="tag">&lt;/<span class="name">value</span>&gt;</span>  </span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>3、启动test01上的metastore server: nohup hive - -service metastore&gt; metastore.log 2&gt;&amp;1 &amp;<br>   默认端口为9083<br>4、配置test02上的hive-site.xml<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&lt;?xml version="1.0"?&gt;</span><br><span class="line">&lt;?xml-stylesheet type="text/xsl" href="configuration.xsl"?&gt;</span><br><span class="line"><span class="tag">&lt;<span class="name">configuration</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">name</span>&gt;</span>hive.metastore.warehouse.dir<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">value</span>&gt;</span>/user/hive/warehouse<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">name</span>&gt;</span>hive.metastore.local<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">value</span>&gt;</span>false<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">name</span>&gt;</span>hive.metastore.uris<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">value</span>&gt;</span>thrift://test01:9083<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>这样test02上通过hive就可以访问test01上的了</p>
+<h2 id="idea上运行local的spark-sql"><a href="#idea上运行local的spark-sql" class="headerlink" title="idea上运行local的spark sql"></a>idea上运行local的spark sql</h2><p>前提：本机上的hive client可以使用, 同时我这里用了hadoop2.2版本<br>我使用的是maven 工程, pom.xml如下：<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependencies</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.spark<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spark-core_2.10<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.1.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"></span><br><span class="line">           <span class="tag">&lt;<span class="name">exclusions</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">exclusion</span>&gt;</span></span><br><span class="line">               <span class="comment">&lt;!--默认是1.0.4版本，要去掉--&gt;</span></span><br><span class="line">                   <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.hadoop<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">                   <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>hadoop-client<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;/<span class="name">exclusion</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;/<span class="name">exclusions</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">       <span class="comment">&lt;!-- 引入和hadoop集群相同版本的--&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.hadoop<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>hadoop-client<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.2.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.spark<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spark-mllib_2.10<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.1.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.spark<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spark-sql_2.10<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.1.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.spark<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spark-hive_2.10<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.1.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;/<span class="name">dependencies</span>&gt;</span></span><br><span class="line"></span><br><span class="line">   <span class="tag">&lt;<span class="name">build</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;<span class="name">plugins</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">plugin</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.maven.plugins<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>maven-source-plugin<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.2.1<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">executions</span>&gt;</span></span><br><span class="line">                   <span class="tag">&lt;<span class="name">execution</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">id</span>&gt;</span>attach-sources<span class="tag">&lt;/<span class="name">id</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">phase</span>&gt;</span>package<span class="tag">&lt;/<span class="name">phase</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">goals</span>&gt;</span></span><br><span class="line">                           <span class="tag">&lt;<span class="name">goal</span>&gt;</span>jar<span class="tag">&lt;/<span class="name">goal</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;/<span class="name">goals</span>&gt;</span></span><br><span class="line">                   <span class="tag">&lt;/<span class="name">execution</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;/<span class="name">executions</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;/<span class="name">plugin</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;<span class="name">plugin</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>net.alchim31.maven<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>scala-maven-plugin<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">version</span>&gt;</span>3.1.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;<span class="name">executions</span>&gt;</span></span><br><span class="line">                   <span class="tag">&lt;<span class="name">execution</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">id</span>&gt;</span>compile-scala<span class="tag">&lt;/<span class="name">id</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">phase</span>&gt;</span>compile<span class="tag">&lt;/<span class="name">phase</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">goals</span>&gt;</span></span><br><span class="line">                           <span class="tag">&lt;<span class="name">goal</span>&gt;</span>add-source<span class="tag">&lt;/<span class="name">goal</span>&gt;</span></span><br><span class="line">                           <span class="tag">&lt;<span class="name">goal</span>&gt;</span>compile<span class="tag">&lt;/<span class="name">goal</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;/<span class="name">goals</span>&gt;</span></span><br><span class="line">                   <span class="tag">&lt;/<span class="name">execution</span>&gt;</span></span><br><span class="line">                   <span class="tag">&lt;<span class="name">execution</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">id</span>&gt;</span>test-compile-scala<span class="tag">&lt;/<span class="name">id</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">phase</span>&gt;</span>test-compile<span class="tag">&lt;/<span class="name">phase</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;<span class="name">goals</span>&gt;</span></span><br><span class="line">                           <span class="tag">&lt;<span class="name">goal</span>&gt;</span>add-source<span class="tag">&lt;/<span class="name">goal</span>&gt;</span></span><br><span class="line">                           <span class="tag">&lt;<span class="name">goal</span>&gt;</span>testCompile<span class="tag">&lt;/<span class="name">goal</span>&gt;</span></span><br><span class="line">                       <span class="tag">&lt;/<span class="name">goals</span>&gt;</span></span><br><span class="line">                   <span class="tag">&lt;/<span class="name">execution</span>&gt;</span></span><br><span class="line">               <span class="tag">&lt;/<span class="name">executions</span>&gt;</span></span><br><span class="line">           <span class="tag">&lt;/<span class="name">plugin</span>&gt;</span></span><br><span class="line">       <span class="tag">&lt;/<span class="name">plugins</span>&gt;</span></span><br><span class="line">   <span class="tag">&lt;/<span class="name">build</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>将hive client的hive-site.xml放到resources目录下，这样就可以访问远程的hive metadata了。</p>
+<p>Test程序：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">object</span> <span class="title">Test</span></span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">main</span></span>(args:<span class="type">Array</span>[<span class="type">String</span>]): <span class="type">Unit</span> = &#123;</span><br><span class="line">    <span class="keyword">val</span> sc = <span class="keyword">new</span> <span class="type">SparkContext</span>(<span class="string">"local"</span>, <span class="string">"test"</span>)</span><br><span class="line">    <span class="keyword">val</span> hiveContext = <span class="keyword">new</span> <span class="type">HiveContext</span>(sc)</span><br><span class="line">    <span class="keyword">val</span> rdd = hiveContext.sql(<span class="string">"select * from test"</span>)</span><br><span class="line">    rdd.collect().foreach(println)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>运行时有可能报：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Exception</span> in thread <span class="string">"main"</span> org.apache.hadoop.ipc.<span class="type">RemoteException</span>: <span class="type">Server</span> <span class="type">IPC</span> version <span class="number">9</span> cannot communicate <span class="keyword">with</span> client version <span class="number">4</span></span><br></pre></td></tr></table></figure></p>
+<p>这是因为org.apache.spark默认使用的是hadoop-client-1.0.4, 而我的hadoop是2.2.0, 所以版本不一致，解决方法是将hadoop-client-1.0.4改成hadoop-2.2.0， 解决方法已经在上面的pom.xml中加入了。</p>
   
 	</div>
 		<footer class="article-footer clearfix">
@@ -399,14 +265,6 @@
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -415,15 +273,23 @@
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -435,6 +301,14 @@
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -443,19 +317,11 @@
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -468,7 +334,7 @@
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

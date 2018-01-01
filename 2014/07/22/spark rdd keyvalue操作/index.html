@@ -11,20 +11,20 @@
     
 
     
-    <meta name="description" content="主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换 implicit def rddToPairRDDFunctions[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)]) = new PairRDDFunctions(r">
+    <meta name="description" content="主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换1implicit def rddToPairRDDFunctions[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)]) = new PairRDDFunctions(r">
 <meta name="keywords" content="spark,RDD,shuffle,keyvalue">
 <meta property="og:type" content="article">
 <meta property="og:title" content="spark RDD keyvalue操作">
 <meta property="og:url" content="http://yoursite.com/2014/07/22/spark rdd keyvalue操作/index.html">
 <meta property="og:site_name" content="DataKnocker">
-<meta property="og:description" content="主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换 implicit def rddToPairRDDFunctions[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)]) = new PairRDDFunctions(r">
+<meta property="og:description" content="主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换1implicit def rddToPairRDDFunctions[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)]) = new PairRDDFunctions(r">
 <meta property="og:image" content="http://yoursite.com/img/spark/ShuffleRDD.svg">
 <meta property="og:image" content="http://yoursite.com/img/spark/combinekey.svg">
 <meta property="og:image" content="http://yoursite.com/img/spark/cogroup.svg">
-<meta property="og:updated_time" content="2014-09-10T23:15:48.000Z">
+<meta property="og:updated_time" content="2018-01-01T02:20:25.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="spark RDD keyvalue操作">
-<meta name="twitter:description" content="主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换 implicit def rddToPairRDDFunctions[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)]) = new PairRDDFunctions(r">
+<meta name="twitter:description" content="主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换1implicit def rddToPairRDDFunctions[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)]) = new PairRDDFunctions(r">
 <meta name="twitter:image" content="http://yoursite.com/img/spark/ShuffleRDD.svg">
 
     
@@ -109,224 +109,51 @@
 		
 		</div>
 		
-		<p>主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。<br>隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换</p>
-<pre><code>implicit def rddToPairRDDFunctions[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)]) = new PairRDDFunctions(rdd)
-</code></pre><p><em>note:写spark程序时使用PairRDDFunctions中的方法时会报错，需要import SparkContext._ ，使object SparkContext中的所有方法都能被引入进来。</em></p>
+		<p>主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。<br>隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">implicit</span> <span class="function"><span class="keyword">def</span> <span class="title">rddToPairRDDFunctions</span></span>[<span class="type">K</span>: <span class="type">ClassTag</span>, <span class="type">V</span>: <span class="type">ClassTag</span>](rdd: <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">V</span>)]) = <span class="keyword">new</span> <span class="type">PairRDDFunctions</span>(rdd)</span><br></pre></td></tr></table></figure></p>
+<p><em>note:写spark程序时使用PairRDDFunctions中的方法时会报错，需要import SparkContext._ ，使object SparkContext中的所有方法都能被引入进来。</em></p>
 <h2 id="涉及shuffle的操作"><a href="#涉及shuffle的操作" class="headerlink" title="涉及shuffle的操作"></a>涉及shuffle的操作</h2><p>keyvalue shuffle操作一般都不支持key是Array的情况，除非是自己写的partitioner<br>keyvalue shuffle操作主要分成两类：对一个RDD按key进行聚合combineByKey、partitionBy 以及对多个RDD按key进行相关操作cogroup、subtractByKey。</p>
 <h3 id="partitionBy"><a href="#partitionBy" class="headerlink" title="partitionBy"></a>partitionBy</h3><p>只使用ShuffledRDD(单个RDD shuffle最基本、纯粹的形态)。<br>对shuffle的结果不做处理，返回类型是Iterator[Pair]。即只对key进行partition操作，value不做任何处理。<br>其实spark应该也要实现通用的多RDD shuffle的类似ShuffledRDD的RDD (返回(rddi,Iterator))，这样CoGroupedRDD和SubtractedRDD就可以基于该RDD进行后续处理。不知道spark以后会不会添加。<br><img src="../../../../img/spark/ShuffleRDD.svg" alt="ShuffleRDD的操作流程"><br>shffule过程这里只是简单画了下，以后再写其他文章来深入讲解这块。</p>
-<p>###combineByKey<br>先上代码：</p>
-<pre><code>def combineByKey[C](createCombiner: V =&gt; C,
-      mergeValue: (C, V) =&gt; C,
-      mergeCombiners: (C, C) =&gt; C,
-      partitioner: Partitioner,
-      mapSideCombine: Boolean = true,
-      serializer: Serializer = null): RDD[(K, C)] = {
-    require(mergeCombiners != null, &quot;mergeCombiners must be defined&quot;) // required as of Spark 0.9.0
-    if (keyClass.isArray) { //key是数组时需要特殊的partitioner，默认的HashPartitioner不支持数组
-      if (mapSideCombine) {
-        throw new SparkException(&quot;Cannot use map-side combining with array keys.&quot;)
-      }
-      if (partitioner.isInstanceOf[HashPartitioner]) {
-        throw new SparkException(&quot;Default partitioner cannot partition array keys.&quot;)
-      }
-    }
-    val aggregator = new Aggregator[K, V, C](createCombiner, mergeValue, mergeCombiners)
-    if (self.partitioner == Some(partitioner)) {
-      self.mapPartitionsWithContext((context, iter) =&gt; {
-        new InterruptibleIterator(context, aggregator.combineValuesByKey(iter, context))
-      }, preservesPartitioning = true)
-    } else if (mapSideCombine) { //默认启用。先在各worker上进行combine,以减少数据量，相当于mapreduce的combine操作
-      val combined = self.mapPartitionsWithContext((context, iter) =&gt; {//在各分区先进行按Key聚合
-        aggregator.combineValuesByKey(iter, context)
-      }, preservesPartitioning = true)
-      //进行shuffle过程对key进行分组
-      val partitioned = new ShuffledRDD[K, C, (K, C)](combined, partitioner)
-        .setSerializer(serializer)
-      //在新分区上按Key将value list进行合并
-      partitioned.mapPartitionsWithContext((context, iter) =&gt; {
-        new InterruptibleIterator(context, aggregator.combineCombinersByKey(iter, context))
-      }, preservesPartitioning = true)
-    } else {
-      // Don&apos;t apply map-side combiner.
-      val values = new ShuffledRDD[K, V, (K, V)](self, partitioner).setSerializer(serializer)
-      values.mapPartitionsWithContext((context, iter) =&gt; {
-        new InterruptibleIterator(context, aggregator.combineValuesByKey(iter, context))
-      }, preservesPartitioning = true)
-    }
-  }
-</code></pre><p><img src="../../../../img/spark/combinekey.svg" alt="combineByKey的操作流程"><br>主要参数介绍：<br>createCombiner、mergeValue、mergeCombiners在Aggregator中使用，其实是在AppendOnlyMap/ExternalAppendOnlyMap(详见<a href="http://dataknocker.github.io/2014/07/23/spark-appendonlymap/" target="_blank" rel="noopener">AppendOnlyMap/ExternalAppendOnlyMap</a>)中使用。<br>Aggregator中使用了AppendOnlyMap/ExternalAppendOnlyMap。<br>createCombiner：当Map中无对应的key时，则创建Combiner(如List等)，并将value放到该Combiner中。即完成Value-&gt;Combiner。<br>mergeValue：当Map中存在相应的key时，则将value添加到对应的Combiner中。<br>mergeCombiners：将各Combiner进行合并。</p>
+<p>###combineByKey<br>先上代码：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">combineByKey</span></span>[<span class="type">C</span>](createCombiner: <span class="type">V</span> =&gt; <span class="type">C</span>,</span><br><span class="line">      mergeValue: (<span class="type">C</span>, <span class="type">V</span>) =&gt; <span class="type">C</span>,</span><br><span class="line">      mergeCombiners: (<span class="type">C</span>, <span class="type">C</span>) =&gt; <span class="type">C</span>,</span><br><span class="line">      partitioner: <span class="type">Partitioner</span>,</span><br><span class="line">      mapSideCombine: <span class="type">Boolean</span> = <span class="literal">true</span>,</span><br><span class="line">      serializer: <span class="type">Serializer</span> = <span class="literal">null</span>): <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">C</span>)] = &#123;</span><br><span class="line">    require(mergeCombiners != <span class="literal">null</span>, <span class="string">"mergeCombiners must be defined"</span>) <span class="comment">// required as of Spark 0.9.0</span></span><br><span class="line">    <span class="keyword">if</span> (keyClass.isArray) &#123; <span class="comment">//key是数组时需要特殊的partitioner，默认的HashPartitioner不支持数组</span></span><br><span class="line">      <span class="keyword">if</span> (mapSideCombine) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="type">SparkException</span>(<span class="string">"Cannot use map-side combining with array keys."</span>)</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (partitioner.isInstanceOf[<span class="type">HashPartitioner</span>]) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="type">SparkException</span>(<span class="string">"Default partitioner cannot partition array keys."</span>)</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">val</span> aggregator = <span class="keyword">new</span> <span class="type">Aggregator</span>[<span class="type">K</span>, <span class="type">V</span>, <span class="type">C</span>](createCombiner, mergeValue, mergeCombiners)</span><br><span class="line">    <span class="keyword">if</span> (self.partitioner == <span class="type">Some</span>(partitioner)) &#123;</span><br><span class="line">      self.mapPartitionsWithContext((context, iter) =&gt; &#123;</span><br><span class="line">        <span class="keyword">new</span> <span class="type">InterruptibleIterator</span>(context, aggregator.combineValuesByKey(iter, context))</span><br><span class="line">      &#125;, preservesPartitioning = <span class="literal">true</span>)</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (mapSideCombine) &#123; <span class="comment">//默认启用。先在各worker上进行combine,以减少数据量，相当于mapreduce的combine操作</span></span><br><span class="line">      <span class="keyword">val</span> combined = self.mapPartitionsWithContext((context, iter) =&gt; &#123;<span class="comment">//在各分区先进行按Key聚合</span></span><br><span class="line">        aggregator.combineValuesByKey(iter, context)</span><br><span class="line">      &#125;, preservesPartitioning = <span class="literal">true</span>)</span><br><span class="line">      <span class="comment">//进行shuffle过程对key进行分组</span></span><br><span class="line">      <span class="keyword">val</span> partitioned = <span class="keyword">new</span> <span class="type">ShuffledRDD</span>[<span class="type">K</span>, <span class="type">C</span>, (<span class="type">K</span>, <span class="type">C</span>)](combined, partitioner)</span><br><span class="line">        .setSerializer(serializer)</span><br><span class="line">      <span class="comment">//在新分区上按Key将value list进行合并</span></span><br><span class="line">      partitioned.mapPartitionsWithContext((context, iter) =&gt; &#123;</span><br><span class="line">        <span class="keyword">new</span> <span class="type">InterruptibleIterator</span>(context, aggregator.combineCombinersByKey(iter, context))</span><br><span class="line">      &#125;, preservesPartitioning = <span class="literal">true</span>)</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// Don't apply map-side combiner.</span></span><br><span class="line">      <span class="keyword">val</span> values = <span class="keyword">new</span> <span class="type">ShuffledRDD</span>[<span class="type">K</span>, <span class="type">V</span>, (<span class="type">K</span>, <span class="type">V</span>)](self, partitioner).setSerializer(serializer)</span><br><span class="line">      values.mapPartitionsWithContext((context, iter) =&gt; &#123;</span><br><span class="line">        <span class="keyword">new</span> <span class="type">InterruptibleIterator</span>(context, aggregator.combineValuesByKey(iter, context))</span><br><span class="line">      &#125;, preservesPartitioning = <span class="literal">true</span>)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></p>
+<p><img src="../../../../img/spark/combinekey.svg" alt="combineByKey的操作流程"><br>主要参数介绍：<br>createCombiner、mergeValue、mergeCombiners在Aggregator中使用，其实是在AppendOnlyMap/ExternalAppendOnlyMap(详见<a href="http://dataknocker.github.io/2014/07/23/spark-appendonlymap/" target="_blank" rel="noopener">AppendOnlyMap/ExternalAppendOnlyMap</a>)中使用。<br>Aggregator中使用了AppendOnlyMap/ExternalAppendOnlyMap。<br>createCombiner：当Map中无对应的key时，则创建Combiner(如List等)，并将value放到该Combiner中。即完成Value-&gt;Combiner。<br>mergeValue：当Map中存在相应的key时，则将value添加到对应的Combiner中。<br>mergeCombiners：将各Combiner进行合并。</p>
 <p>aggregator.combineValuesByKey：按key合并value，些时value是基本的value还非Combiner。当AppendOnlyMap中无key时，进行createCombiner，有key时进行mergeValue。<br>aggregator.combineCombinersByKey：些时value已经是Combiner(因为该步的数据其实是由ShuffleRDD的前一个RDD进行shffule的，即调用了aggregator.combineValuesByKey将结果转成Combiner)，当AppendOnlyMap中无key时，新的c作为value，有key时进行将新Combiner与旧Combiner进行合并。</p>
 <p>主要流程(mapSideCombine=true)：<br>1、在各分区上先按key将value进行聚合：aggregator.combineValuesByKey()<br>2、shuffle阶段，new ShuffleRDD<br>   map端：各分区按key.hash将各kvpair写到对应的bucket中<br>   reduce端：ShuffleRDD.compute()。 从map端fetch本reduce负责的key对应的kvpairs Iterator<br>3、对ShuffleRDD生成的各分区进行按key将对应的多个value list进行合并：aggregator.combineCombinersByKey</p>
 <p>combineByKey形成的stage的描述会是调用combineByKey所在的行，其实应该是ShuffleRDD的前一个RDD即MapPartititionRDD，但由于是在combineByKey中进行创建。<br>最常见的reduceByKey形成的stage的描述也是reduceByKey。<br>以下是使用combineByKey的RDD</p>
-<h4 id="reduceByKey"><a href="#reduceByKey" class="headerlink" title="reduceByKey"></a>reduceByKey</h4><p>对RDD按key聚合并进行func运算作为新value。</p>
-<pre><code>def reduceByKey(partitioner: Partitioner, func: (V, V) =&gt; V): RDD[(K, V)] = {
-    combineByKey[V]((v: V) =&gt; v, func, func, partitioner)
-}
-
-def reduceByKey(func: (V, V) =&gt; V, numPartitions: Int): RDD[(K, V)] = {
-    reduceByKey(new HashPartitioner(numPartitions), func)
-}
-
-def reduceByKey(func: (V, V) =&gt; V): RDD[(K, V)] = {
-    reduceByKey(defaultPartitioner(self), func)
-}
-</code></pre><p>numPartitions是shuffle的reduce端的RDD的分区数。不使用该值则调用defaultPartitioner(),该方法是未设置spark.default.parallelism时默认为ShuffleRDD依赖的父RDD中最大的分区。<br>流程：在各分区上通过func对数据进行按key聚合；进行shuffle，将key分配到相应的新分区上。在生成的新分区中再调用func进行按key聚合。</p>
-<h4 id="groupByKey"><a href="#groupByKey" class="headerlink" title="groupByKey"></a>groupByKey</h4><p>对RDD按key聚合，新value是聚合的value list</p>
-<pre><code>def groupByKey(partitioner: Partitioner): RDD[(K, Iterable[V])] = {
-    // groupByKey shouldn&apos;t use map side combine because map side combine does not
-    // reduce the amount of data shuffled and requires all map side data be inserted
-    // into a hash table, leading to more objects in the old gen.
-    def createCombiner(v: V) = ArrayBuffer(v)
-    def mergeValue(buf: ArrayBuffer[V], v: V) = buf += v
-    def mergeCombiners(c1: ArrayBuffer[V], c2: ArrayBuffer[V]) = c1 ++ c2
-    val bufs = combineByKey[ArrayBuffer[V]](
-      createCombiner _, mergeValue _, mergeCombiners _, partitioner, mapSideCombine=false)
-    bufs.mapValues(_.toIterable)
-}
-</code></pre><p>原理是当Key不存在时创建ArrayBuffer(v)，存在时将v加到该ArrayBuffer中，然后将各ArrayBuffer按key进行合并。<br><em>note:groupByKey中的mapSideCombine=false，因为其保留所有的值，所以不需要mapSideCombine</em></p>
-<h4 id="foldByKey"><a href="#foldByKey" class="headerlink" title="foldByKey"></a>foldByKey</h4><p>该方法具体还不知道有什么实际应用场景…</p>
-<pre><code>def foldByKey(zeroValue: V, partitioner: Partitioner)(func: (V, V) =&gt; V): RDD[(K, V)] = {
-    // Serialize the zero value to a byte array so that we can get a new clone of it on each key
-    val zeroBuffer = SparkEnv.get.closureSerializer.newInstance().serialize(zeroValue)
-    val zeroArray = new Array[Byte](zeroBuffer.limit)
-    zeroBuffer.get(zeroArray)
-
-    // When deserializing, use a lazy val to create just one instance of the serializer per task
-    lazy val cachedSerializer = SparkEnv.get.closureSerializer.newInstance()
-    def createZero() = cachedSerializer.deserialize[V](ByteBuffer.wrap(zeroArray))
-
-    combineByKey[V]((v: V) =&gt; func(createZero(), v), func, func, partitioner)
-}
-</code></pre><p>createZero()即copy一份和zeroValue一样的数据。其会在每个key第一次放到AppendOnlyMap中时调用。和fold一样，它要求func的两个参数是同类型的。</p>
-<p>关于zeroValue这里举个例子进行说明：</p>
-<pre><code>val a = sc.parallelize(List(&quot;dog&quot;, &quot;tiger&quot;, &quot;cat&quot;, &quot;lion&quot;, &quot;panther&quot;, &quot;eagle&quot;), 2)
-val b = a.map(x =&gt; (x.length, x))
-b.foldByKey(&quot;X&quot;)(_ + _).collect
-//结果是: Array[(Int, String)] = Array((4,Xlion), (3,XdogXcat), (7,Xpanther), (5,XtigerXeagle))
-</code></pre><p>因为combineKey操作中：<br>1、各分区进行aggregator.combineValuesByKey， 而createZero()即X会在key第一次加入到Map中被使用，即结果为分区1：(3,Xdogcat),(5:Xtiger)； 分区2:(4:Xlion),(7,Xpanther),(5,Xeagle)<br>2、进行shuffle后分区1: (3,Xdogcat),(4,Xlion) 分区2:(5,Xtiger),(5,Xeagle),(7,Xpanther)。 真实分区可能不是这样，这里只是举例。<br>3、各分区进行aggregator.combineCombinersByKey，将相同key的值进行合并，即结果为分区1：(3,Xdogcat),(4,Xlion), 分区2：(5,XtigerXeagle),(7,Xpanther)</p>
-<p>###cogroup<br>    //两个RDD进行cogroup<br>    def cogroup<a href="other: RDD[(K, W" target="_blank" rel="noopener">W</a>], partitioner: Partitioner): RDD[(K, (Iterable[V], Iterable[W]))]  = {<br>        if (partitioner.isInstanceOf[HashPartitioner] &amp;&amp; keyClass.isArray) {<br>          throw new SparkException(“Default partitioner cannot partition array keys.”)<br>        }<br>        val cg = new CoGroupedRDD<a href="Seq(self, other">K</a>, partitioner)<br>        cg.mapValues { case Seq(vs, ws) =&gt;<br>          (vs.asInstanceOf[Seq[V]], ws.asInstanceOf[Seq[W]])<br>        }<br>    }<br>    //三个RDD进行cogroup<br>    def cogroup<a href="other1: RDD[(K, W1" target="_blank" rel="noopener">W1, W2</a>], other2: RDD[(K, W2)], partitioner: Partitioner): RDD[(K, (Iterable[V], Iterable[W1], Iterable[W2]))] = {<br>        if (partitioner.isInstanceOf[HashPartitioner] &amp;&amp; keyClass.isArray) {//Key是数组时要注意<br>          throw new SparkException(“Default partitioner cannot partition array keys.”)<br>        }<br>        val cg = new CoGroupedRDD<a href="Seq(self, other1, other2">K</a>, partitioner)<br>        cg.mapValues { case Seq(vs, w1s, w2s) =&gt;<br>          (vs.asInstanceOf[Seq[V]],<br>           w1s.asInstanceOf[Seq[W1]],<br>           w2s.asInstanceOf[Seq[W2]])<br>        }<br>    }<br><img src="../../../../img/spark/cogroup.svg" alt="cogroup的操作流程"><br>流程，以两个RDD进行cogroup为例：<br>1、创建CoGroupedRDD，该RDD的dependency都是ShuffleDependency (当其两个父RDD的partitioner==Some(part)时是NarrowDependency, 这个以后再研究。大部分情况都是partitioner!=Some(part))。 于是会产生Shuffle过程：<br>   map端：两个父RDD都会将其分区数据写到相应的bucket中。<br>   reduce端：每个rdd都会通过SparkEnv.get.shuffleFetcher获得相应分区所负责的key的Iterator数据，通过AppendOnlyMap/ExternalAppendOnlyMap对从map阶段各分区得到的结果进行聚合形成新的Iterator。<br>得到的结果是RDD[(K, Seq[Seq[_]])], 即对于每个Key, 都是Array[ArrayBuffer], 该二维数组存了各个RDD的聚合结果(即外层数组长度是rdd的个数)，里面的是具体某个RDD对应Key的value list。这里只看使用ExternalAppendOnlyMap的核心代码，AppendOnlyMap与之类似。</p>
-<pre><code>val createCombiner: (CoGroupValue =&gt; CoGroupCombiner) = value =&gt; {
-  val newCombiner = Array.fill(numRdds)(new CoGroup)
-  value match { case (v, depNum) =&gt; newCombiner(depNum) += v }
-  newCombiner
-}
-val mergeValue: (CoGroupCombiner, CoGroupValue) =&gt; CoGroupCombiner =
-  (combiner, value) =&gt; {
-  value match { case (v, depNum) =&gt; combiner(depNum) += v }
-  combiner
-}
-val mergeCombiners: (CoGroupCombiner, CoGroupCombiner) =&gt; CoGroupCombiner =
-  (combiner1, combiner2) =&gt; {
-    combiner1.zip(combiner2).map { case (v1, v2) =&gt; v1 ++ v2 }
-  }
-new ExternalAppendOnlyMap[K, CoGroupValue, CoGroupCombiner](
-  createCombiner, mergeValue, mergeCombiners)
-</code></pre><p>createCombiner:当相应key不存在时，会创建一个二维数据，该二维数组存了各个RDD的聚合结果。<br>mergeValue: 当相应key存在时进行value的merge。value的形式是(v,rddNum), 根据rddNum找到二维数组中相应RDD的结果数组，将新的v添加到该数组中<br>mergeCombiners: 多个Iterator(一个mem Iterator与多个DiskMapIterator)在优先队列dequeue操作时将key相同的kvpairs的value进行合并。</p>
+<h4 id="reduceByKey"><a href="#reduceByKey" class="headerlink" title="reduceByKey"></a>reduceByKey</h4><p>对RDD按key聚合并进行func运算作为新value。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">reduceByKey</span></span>(partitioner: <span class="type">Partitioner</span>, func: (<span class="type">V</span>, <span class="type">V</span>) =&gt; <span class="type">V</span>): <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">V</span>)] = &#123;</span><br><span class="line">   	combineByKey[<span class="type">V</span>]((v: <span class="type">V</span>) =&gt; v, func, func, partitioner)</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">reduceByKey</span></span>(func: (<span class="type">V</span>, <span class="type">V</span>) =&gt; <span class="type">V</span>, numPartitions: <span class="type">Int</span>): <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">V</span>)] = &#123;</span><br><span class="line">   	reduceByKey(<span class="keyword">new</span> <span class="type">HashPartitioner</span>(numPartitions), func)</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">reduceByKey</span></span>(func: (<span class="type">V</span>, <span class="type">V</span>) =&gt; <span class="type">V</span>): <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">V</span>)] = &#123;</span><br><span class="line">   	reduceByKey(defaultPartitioner(self), func)</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>numPartitions是shuffle的reduce端的RDD的分区数。不使用该值则调用defaultPartitioner(),该方法是未设置spark.default.parallelism时默认为ShuffleRDD依赖的父RDD中最大的分区。<br>流程：在各分区上通过func对数据进行按key聚合；进行shuffle，将key分配到相应的新分区上。在生成的新分区中再调用func进行按key聚合。</p>
+<h4 id="groupByKey"><a href="#groupByKey" class="headerlink" title="groupByKey"></a>groupByKey</h4><p>对RDD按key聚合，新value是聚合的value list<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">groupByKey</span></span>(partitioner: <span class="type">Partitioner</span>): <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">Iterable</span>[<span class="type">V</span>])] = &#123;</span><br><span class="line">    <span class="comment">// groupByKey shouldn't use map side combine because map side combine does not</span></span><br><span class="line">    <span class="comment">// reduce the amount of data shuffled and requires all map side data be inserted</span></span><br><span class="line">    <span class="comment">// into a hash table, leading to more objects in the old gen.</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">createCombiner</span></span>(v: <span class="type">V</span>) = <span class="type">ArrayBuffer</span>(v)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">mergeValue</span></span>(buf: <span class="type">ArrayBuffer</span>[<span class="type">V</span>], v: <span class="type">V</span>) = buf += v</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">mergeCombiners</span></span>(c1: <span class="type">ArrayBuffer</span>[<span class="type">V</span>], c2: <span class="type">ArrayBuffer</span>[<span class="type">V</span>]) = c1 ++ c2</span><br><span class="line">    <span class="keyword">val</span> bufs = combineByKey[<span class="type">ArrayBuffer</span>[<span class="type">V</span>]](</span><br><span class="line">      createCombiner _, mergeValue _, mergeCombiners _, partitioner, mapSideCombine=<span class="literal">false</span>)</span><br><span class="line">    bufs.mapValues(_.toIterable)</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>原理是当Key不存在时创建ArrayBuffer(v)，存在时将v加到该ArrayBuffer中，然后将各ArrayBuffer按key进行合并。<br><em>note:groupByKey中的mapSideCombine=false，因为其保留所有的值，所以不需要mapSideCombine</em></p>
+<h4 id="foldByKey"><a href="#foldByKey" class="headerlink" title="foldByKey"></a>foldByKey</h4><p>该方法具体还不知道有什么实际应用场景…<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">foldByKey</span></span>(zeroValue: <span class="type">V</span>, partitioner: <span class="type">Partitioner</span>)(func: (<span class="type">V</span>, <span class="type">V</span>) =&gt; <span class="type">V</span>): <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">V</span>)] = &#123;</span><br><span class="line">    <span class="comment">// Serialize the zero value to a byte array so that we can get a new clone of it on each key</span></span><br><span class="line">    <span class="keyword">val</span> zeroBuffer = <span class="type">SparkEnv</span>.get.closureSerializer.newInstance().serialize(zeroValue)</span><br><span class="line">    <span class="keyword">val</span> zeroArray = <span class="keyword">new</span> <span class="type">Array</span>[<span class="type">Byte</span>](zeroBuffer.limit)</span><br><span class="line">    zeroBuffer.get(zeroArray)</span><br><span class="line"></span><br><span class="line">    <span class="comment">// When deserializing, use a lazy val to create just one instance of the serializer per task</span></span><br><span class="line">    <span class="keyword">lazy</span> <span class="keyword">val</span> cachedSerializer = <span class="type">SparkEnv</span>.get.closureSerializer.newInstance()</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">createZero</span></span>() = cachedSerializer.deserialize[<span class="type">V</span>](<span class="type">ByteBuffer</span>.wrap(zeroArray))</span><br><span class="line"></span><br><span class="line">    combineByKey[<span class="type">V</span>]((v: <span class="type">V</span>) =&gt; func(createZero(), v), func, func, partitioner)</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>createZero()即copy一份和zeroValue一样的数据。其会在每个key第一次放到AppendOnlyMap中时调用。和fold一样，它要求func的两个参数是同类型的。</p>
+<p>关于zeroValue这里举个例子进行说明：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> a = sc.parallelize(<span class="type">List</span>(<span class="string">"dog"</span>, <span class="string">"tiger"</span>, <span class="string">"cat"</span>, <span class="string">"lion"</span>, <span class="string">"panther"</span>, <span class="string">"eagle"</span>), <span class="number">2</span>)</span><br><span class="line"><span class="keyword">val</span> b = a.map(x =&gt; (x.length, x))</span><br><span class="line">b.foldByKey(<span class="string">"X"</span>)(_ + _).collect</span><br><span class="line"><span class="comment">//结果是: Array[(Int, String)] = Array((4,Xlion), (3,XdogXcat), (7,Xpanther), (5,XtigerXeagle))</span></span><br></pre></td></tr></table></figure></p>
+<p>因为combineKey操作中：<br>1、各分区进行aggregator.combineValuesByKey， 而createZero()即X会在key第一次加入到Map中被使用，即结果为分区1：(3,Xdogcat),(5:Xtiger)； 分区2:(4:Xlion),(7,Xpanther),(5,Xeagle)<br>2、进行shuffle后分区1: (3,Xdogcat),(4,Xlion) 分区2:(5,Xtiger),(5,Xeagle),(7,Xpanther)。 真实分区可能不是这样，这里只是举例。<br>3、各分区进行aggregator.combineCombinersByKey，将相同key的值进行合并，即结果为分区1：(3,Xdogcat),(4,Xlion), 分区2：(5,XtigerXeagle),(7,Xpanther)</p>
+<p>###cogroup<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">   <span class="comment">//两个RDD进行cogroup</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">cogroup</span></span>[<span class="type">W</span>](other: <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">W</span>)], partitioner: <span class="type">Partitioner</span>): <span class="type">RDD</span>[(<span class="type">K</span>, (<span class="type">Iterable</span>[<span class="type">V</span>], <span class="type">Iterable</span>[<span class="type">W</span>]))]  = &#123;</span><br><span class="line">    <span class="keyword">if</span> (partitioner.isInstanceOf[<span class="type">HashPartitioner</span>] &amp;&amp; keyClass.isArray) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> <span class="type">SparkException</span>(<span class="string">"Default partitioner cannot partition array keys."</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">val</span> cg = <span class="keyword">new</span> <span class="type">CoGroupedRDD</span>[<span class="type">K</span>](<span class="type">Seq</span>(self, other), partitioner)</span><br><span class="line">    cg.mapValues &#123; <span class="keyword">case</span> <span class="type">Seq</span>(vs, ws) =&gt;</span><br><span class="line">      (vs.asInstanceOf[<span class="type">Seq</span>[<span class="type">V</span>]], ws.asInstanceOf[<span class="type">Seq</span>[<span class="type">W</span>]])</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br><span class="line">   <span class="comment">//三个RDD进行cogroup</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">cogroup</span></span>[<span class="type">W1</span>, <span class="type">W2</span>](other1: <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">W1</span>)], other2: <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">W2</span>)], partitioner: <span class="type">Partitioner</span>): <span class="type">RDD</span>[(<span class="type">K</span>, (<span class="type">Iterable</span>[<span class="type">V</span>], <span class="type">Iterable</span>[<span class="type">W1</span>], <span class="type">Iterable</span>[<span class="type">W2</span>]))] = &#123;</span><br><span class="line">    <span class="keyword">if</span> (partitioner.isInstanceOf[<span class="type">HashPartitioner</span>] &amp;&amp; keyClass.isArray) &#123;<span class="comment">//Key是数组时要注意</span></span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> <span class="type">SparkException</span>(<span class="string">"Default partitioner cannot partition array keys."</span>)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">val</span> cg = <span class="keyword">new</span> <span class="type">CoGroupedRDD</span>[<span class="type">K</span>](<span class="type">Seq</span>(self, other1, other2), partitioner)</span><br><span class="line">    cg.mapValues &#123; <span class="keyword">case</span> <span class="type">Seq</span>(vs, w1s, w2s) =&gt;</span><br><span class="line">      (vs.asInstanceOf[<span class="type">Seq</span>[<span class="type">V</span>]],</span><br><span class="line">       w1s.asInstanceOf[<span class="type">Seq</span>[<span class="type">W1</span>]],</span><br><span class="line">       w2s.asInstanceOf[<span class="type">Seq</span>[<span class="type">W2</span>]])</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p><img src="../../../../img/spark/cogroup.svg" alt="cogroup的操作流程"><br>流程，以两个RDD进行cogroup为例：<br>1、创建CoGroupedRDD，该RDD的dependency都是ShuffleDependency (当其两个父RDD的partitioner==Some(part)时是NarrowDependency, 这个以后再研究。大部分情况都是partitioner!=Some(part))。 于是会产生Shuffle过程：<br>   map端：两个父RDD都会将其分区数据写到相应的bucket中。<br>   reduce端：每个rdd都会通过SparkEnv.get.shuffleFetcher获得相应分区所负责的key的Iterator数据，通过AppendOnlyMap/ExternalAppendOnlyMap对从map阶段各分区得到的结果进行聚合形成新的Iterator。<br>得到的结果是RDD[(K, Seq[Seq[_]])], 即对于每个Key, 都是Array[ArrayBuffer], 该二维数组存了各个RDD的聚合结果(即外层数组长度是rdd的个数)，里面的是具体某个RDD对应Key的value list。这里只看使用ExternalAppendOnlyMap的核心代码，AppendOnlyMap与之类似。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> createCombiner: (<span class="type">CoGroupValue</span> =&gt; <span class="type">CoGroupCombiner</span>) = value =&gt; &#123;</span><br><span class="line">  <span class="keyword">val</span> newCombiner = <span class="type">Array</span>.fill(numRdds)(<span class="keyword">new</span> <span class="type">CoGroup</span>)</span><br><span class="line">  value <span class="keyword">match</span> &#123; <span class="keyword">case</span> (v, depNum) =&gt; newCombiner(depNum) += v &#125;</span><br><span class="line">  newCombiner</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">val</span> mergeValue: (<span class="type">CoGroupCombiner</span>, <span class="type">CoGroupValue</span>) =&gt; <span class="type">CoGroupCombiner</span> =</span><br><span class="line">  (combiner, value) =&gt; &#123;</span><br><span class="line">  value <span class="keyword">match</span> &#123; <span class="keyword">case</span> (v, depNum) =&gt; combiner(depNum) += v &#125;</span><br><span class="line">  combiner</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">val</span> mergeCombiners: (<span class="type">CoGroupCombiner</span>, <span class="type">CoGroupCombiner</span>) =&gt; <span class="type">CoGroupCombiner</span> =</span><br><span class="line">  (combiner1, combiner2) =&gt; &#123;</span><br><span class="line">    combiner1.zip(combiner2).map &#123; <span class="keyword">case</span> (v1, v2) =&gt; v1 ++ v2 &#125;</span><br><span class="line">  &#125;</span><br><span class="line"><span class="keyword">new</span> <span class="type">ExternalAppendOnlyMap</span>[<span class="type">K</span>, <span class="type">CoGroupValue</span>, <span class="type">CoGroupCombiner</span>](</span><br><span class="line">  createCombiner, mergeValue, mergeCombiners)</span><br></pre></td></tr></table></figure></p>
+<p>createCombiner:当相应key不存在时，会创建一个二维数据，该二维数组存了各个RDD的聚合结果。<br>mergeValue: 当相应key存在时进行value的merge。value的形式是(v,rddNum), 根据rddNum找到二维数组中相应RDD的结果数组，将新的v添加到该数组中<br>mergeCombiners: 多个Iterator(一个mem Iterator与多个DiskMapIterator)在优先队列dequeue操作时将key相同的kvpairs的value进行合并。</p>
 <p>2、通过mapValues对value进行处理：即将前面得到的二维数组seq(vs,ws)转化成tuple形式,vs和ws是各rdd相应key的value list。 最后得到的结果就是RDD[K,(Iterable[V], Iterable[W])]</p>
 <p>以下是使用cogroup的RDD, 主要是各种Join操作</p>
-<h4 id="join"><a href="#join" class="headerlink" title="join"></a>join</h4><p>只会保留两个rdd共同key对应的记录</p>
-<pre><code>def join[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (V, W))] = {
-    this.cogroup(other, partitioner).flatMapValues { case (vs, ws) =&gt;
-      for (v &lt;- vs; w &lt;- ws) yield (v, w)
-    }
-}
-</code></pre><p>使用flatMapValues将cogroup生成的(k,(vs,ws))转成(k,(v,w))列表。<br>flatMapValues会创建FlatMappedValuesRDD，其compute方法为：</p>
-<pre><code>override def compute(split: Partition, context: TaskContext) = {
-    firstParent[Product2[K, V]].iterator(split, context).flatMap { case Product2(k, v) =&gt;
-      f(v).map(x =&gt; (k, x))
-    }
-}
-</code></pre><p>这里的f即flatMapValues方法中声明的方法。(K,(Iterable[V], Iterable[W])) 会先被flatMap方法调用，其中的f会对(Iterable[V], Iterable[W])进行循环遍历生成(v,s)。然后flatMap再产生(k,(v,s))</p>
-<h4 id="leftOuterJoin"><a href="#leftOuterJoin" class="headerlink" title="leftOuterJoin"></a>leftOuterJoin</h4><p>左rdd的所有key都被保留</p>
-<pre><code>def leftOuterJoin[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (V, Option[W]))] = {
-    this.cogroup(other, partitioner).flatMapValues { case (vs, ws) =&gt;
-      if (ws.isEmpty) {
-        vs.map(v =&gt; (v, None))
-      } else {
-        for (v &lt;- vs; w &lt;- ws) yield (v, Some(w))
-      }
-    }
-}
-</code></pre><p>和join差不多，只是当ws(右rdd)是空时会输出(k,(v,None)),  ws不空时会输出(k,(v,Some(w)))。 第二个RDD的value是Optition类型，个人猜测是便于判断是否为空的处理。</p>
-<h4 id="rightOuterJoin"><a href="#rightOuterJoin" class="headerlink" title="rightOuterJoin"></a>rightOuterJoin</h4><p>右rdd的所有key都被保留</p>
-<pre><code>def rightOuterJoin[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (Option[V], W))] = {
-    this.cogroup(other, partitioner).flatMapValues { case (vs, ws) =&gt;
-      if (vs.isEmpty) {
-        ws.map(w =&gt; (None, w))
-      } else {
-        for (v &lt;- vs; w &lt;- ws) yield (Some(v), w)
-      }
-    }
-}
-</code></pre><p>和join差不多，只是当vs(左rdd)是空时会输出(k,(None,w)),  ws不空时会输出(k,(Some(v),w))。 </p>
+<h4 id="join"><a href="#join" class="headerlink" title="join"></a>join</h4><p>只会保留两个rdd共同key对应的记录<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">join</span></span>[<span class="type">W</span>](other: <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">W</span>)], partitioner: <span class="type">Partitioner</span>): <span class="type">RDD</span>[(<span class="type">K</span>, (<span class="type">V</span>, <span class="type">W</span>))] = &#123;</span><br><span class="line">    <span class="keyword">this</span>.cogroup(other, partitioner).flatMapValues &#123; <span class="keyword">case</span> (vs, ws) =&gt;</span><br><span class="line">      <span class="keyword">for</span> (v &lt;- vs; w &lt;- ws) <span class="keyword">yield</span> (v, w)</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>使用flatMapValues将cogroup生成的(k,(vs,ws))转成(k,(v,w))列表。<br>flatMapValues会创建FlatMappedValuesRDD，其compute方法为：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">compute</span></span>(split: <span class="type">Partition</span>, context: <span class="type">TaskContext</span>) = &#123;</span><br><span class="line">    firstParent[<span class="type">Product2</span>[<span class="type">K</span>, <span class="type">V</span>]].iterator(split, context).flatMap &#123; <span class="keyword">case</span> <span class="type">Product2</span>(k, v) =&gt;</span><br><span class="line">      f(v).map(x =&gt; (k, x))</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这里的f即flatMapValues方法中声明的方法。(K,(Iterable[V], Iterable[W])) 会先被flatMap方法调用，其中的f会对(Iterable[V], Iterable[W])进行循环遍历生成(v,s)。然后flatMap再产生(k,(v,s))</p>
+<h4 id="leftOuterJoin"><a href="#leftOuterJoin" class="headerlink" title="leftOuterJoin"></a>leftOuterJoin</h4><p>左rdd的所有key都被保留<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">leftOuterJoin</span></span>[<span class="type">W</span>](other: <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">W</span>)], partitioner: <span class="type">Partitioner</span>): <span class="type">RDD</span>[(<span class="type">K</span>, (<span class="type">V</span>, <span class="type">Option</span>[<span class="type">W</span>]))] = &#123;</span><br><span class="line">    <span class="keyword">this</span>.cogroup(other, partitioner).flatMapValues &#123; <span class="keyword">case</span> (vs, ws) =&gt;</span><br><span class="line">      <span class="keyword">if</span> (ws.isEmpty) &#123;</span><br><span class="line">        vs.map(v =&gt; (v, <span class="type">None</span>))</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (v &lt;- vs; w &lt;- ws) <span class="keyword">yield</span> (v, <span class="type">Some</span>(w))</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>和join差不多，只是当ws(右rdd)是空时会输出(k,(v,None)),  ws不空时会输出(k,(v,Some(w)))。 第二个RDD的value是Optition类型，个人猜测是便于判断是否为空的处理。</p>
+<h4 id="rightOuterJoin"><a href="#rightOuterJoin" class="headerlink" title="rightOuterJoin"></a>rightOuterJoin</h4><p>右rdd的所有key都被保留<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">rightOuterJoin</span></span>[<span class="type">W</span>](other: <span class="type">RDD</span>[(<span class="type">K</span>, <span class="type">W</span>)], partitioner: <span class="type">Partitioner</span>): <span class="type">RDD</span>[(<span class="type">K</span>, (<span class="type">Option</span>[<span class="type">V</span>], <span class="type">W</span>))] = &#123;</span><br><span class="line">    <span class="keyword">this</span>.cogroup(other, partitioner).flatMapValues &#123; <span class="keyword">case</span> (vs, ws) =&gt;</span><br><span class="line">      <span class="keyword">if</span> (vs.isEmpty) &#123;</span><br><span class="line">        ws.map(w =&gt; (<span class="type">None</span>, w))</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (v &lt;- vs; w &lt;- ws) <span class="keyword">yield</span> (<span class="type">Some</span>(v), w)</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>和join差不多，只是当vs(左rdd)是空时会输出(k,(None,w)),  ws不空时会输出(k,(Some(v),w))。 </p>
 <p><em>note:实际应用中经常会有不止2个rdd join的情况，可以用rdd1 join rdd2 join rdd3, 但这样会发生两次shuffle, 所以当3个rdd join可以使用cogroup(other1,other2)来实现自己的join方法，这样只需要一次shuffle，更多的话只能自己模仿cogroup来写了,毕竟CoGroupedRDD是支持Seq(rdd)的,工作量应该会少些。spark能写个通用的支持任意多个join的就好了…</em></p>
 <h4 id="groupWith"><a href="#groupWith" class="headerlink" title="groupWith"></a>groupWith</h4><p>Alias for cogroup。 只是调用cogroup不做任何处理。</p>
-<h3 id="subtractByKey"><a href="#subtractByKey" class="headerlink" title="subtractByKey"></a>subtractByKey</h3><p>rdd1.subtractByKey(rdd2), 去掉rdd1中与rdd2共有的key对应的kvpairs.<br>主要使用SubtractedRDD， 其dependency也是两个ShuffleDependency, compute方法见下面代码：</p>
-<pre><code>override def compute(p: Partition, context: TaskContext): Iterator[(K, V)] = {
-    val partition = p.asInstanceOf[CoGroupPartition]
-    val ser = Serializer.getSerializer(serializer)
-    val map = new JHashMap[K, ArrayBuffer[V]]
-    def getSeq(k: K): ArrayBuffer[V] = {
-      val seq = map.get(k)
-      if (seq != null) {
-        seq
-      } else {
-        val seq = new ArrayBuffer[V]()
-        map.put(k, seq)
-        seq
-      }
-    }
-    def integrate(dep: CoGroupSplitDep, op: Product2[K, V] =&gt; Unit) = dep match {
-      case NarrowCoGroupSplitDep(rdd, _, itsSplit) =&gt;
-        rdd.iterator(itsSplit, context).asInstanceOf[Iterator[Product2[K, V]]].foreach(op)
-
-      case ShuffleCoGroupSplitDep(shuffleId) =&gt;
-        val iter = SparkEnv.get.shuffleFetcher.fetch[Product2[K, V]](shuffleId, partition.index,
-          context, ser)
-        iter.foreach(op)
-    }
-    // the first dep is rdd1; add all values to the map
-    integrate(partition.deps(0), t =&gt; getSeq(t._1) += t._2)
-    // the second dep is rdd2; remove all of its keys
-    integrate(partition.deps(1), t =&gt; map.remove(t._1))
-    map.iterator.map { t =&gt;  t._2.iterator.map { (t._1, _) } }.flatten
-}
-</code></pre><p>shuffle的map阶段和cogroup一样，在reduce阶段有很大差异(其实可以用leftOuterJoin来实现该功能，只保留右rdd对应的值为None的记录，之所以没用时因为cogroup的reduce阶段会比subtractByKey的复杂很多以及多做一些不必要的工作，如要外排、右rdd的值也被保存等)。<br>reduce阶段：<br>1、创建一个HashMap<br>2、integrate方法通过SparkEnv.get.shuffleFetcher获得相应依赖rdd的map阶段的数据，并对每个数据进行相应的操作：<br>   左rdd: 将记录存到HashMap中，遇到相同key则将value合并到数组中。左rdd的记录就都在内存中<br>   右rdd: 遍历右rdd的记录，不断从HashMap中称除右rdd中出现的key<br>3、将(k,Seq(v))转化成(k,v)列表</p>
+<h3 id="subtractByKey"><a href="#subtractByKey" class="headerlink" title="subtractByKey"></a>subtractByKey</h3><p>rdd1.subtractByKey(rdd2), 去掉rdd1中与rdd2共有的key对应的kvpairs.<br>主要使用SubtractedRDD， 其dependency也是两个ShuffleDependency, compute方法见下面代码：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">compute</span></span>(p: <span class="type">Partition</span>, context: <span class="type">TaskContext</span>): <span class="type">Iterator</span>[(<span class="type">K</span>, <span class="type">V</span>)] = &#123;</span><br><span class="line">    <span class="keyword">val</span> partition = p.asInstanceOf[<span class="type">CoGroupPartition</span>]</span><br><span class="line">    <span class="keyword">val</span> ser = <span class="type">Serializer</span>.getSerializer(serializer)</span><br><span class="line">    <span class="keyword">val</span> map = <span class="keyword">new</span> <span class="type">JHashMap</span>[<span class="type">K</span>, <span class="type">ArrayBuffer</span>[<span class="type">V</span>]]</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">getSeq</span></span>(k: <span class="type">K</span>): <span class="type">ArrayBuffer</span>[<span class="type">V</span>] = &#123;</span><br><span class="line">      <span class="keyword">val</span> seq = map.get(k)</span><br><span class="line">      <span class="keyword">if</span> (seq != <span class="literal">null</span>) &#123;</span><br><span class="line">        seq</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">val</span> seq = <span class="keyword">new</span> <span class="type">ArrayBuffer</span>[<span class="type">V</span>]()</span><br><span class="line">        map.put(k, seq)</span><br><span class="line">        seq</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">integrate</span></span>(dep: <span class="type">CoGroupSplitDep</span>, op: <span class="type">Product2</span>[<span class="type">K</span>, <span class="type">V</span>] =&gt; <span class="type">Unit</span>) = dep <span class="keyword">match</span> &#123;</span><br><span class="line">      <span class="keyword">case</span> <span class="type">NarrowCoGroupSplitDep</span>(rdd, _, itsSplit) =&gt;</span><br><span class="line">        rdd.iterator(itsSplit, context).asInstanceOf[<span class="type">Iterator</span>[<span class="type">Product2</span>[<span class="type">K</span>, <span class="type">V</span>]]].foreach(op)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> <span class="type">ShuffleCoGroupSplitDep</span>(shuffleId) =&gt;</span><br><span class="line">        <span class="keyword">val</span> iter = <span class="type">SparkEnv</span>.get.shuffleFetcher.fetch[<span class="type">Product2</span>[<span class="type">K</span>, <span class="type">V</span>]](shuffleId, partition.index,</span><br><span class="line">          context, ser)</span><br><span class="line">        iter.foreach(op)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// the first dep is rdd1; add all values to the map</span></span><br><span class="line">    integrate(partition.deps(<span class="number">0</span>), t =&gt; getSeq(t._1) += t._2)</span><br><span class="line">    <span class="comment">// the second dep is rdd2; remove all of its keys</span></span><br><span class="line">    integrate(partition.deps(<span class="number">1</span>), t =&gt; map.remove(t._1))</span><br><span class="line">    map.iterator.map &#123; t =&gt;  t._2.iterator.map &#123; (t._1, _) &#125; &#125;.flatten</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>shuffle的map阶段和cogroup一样，在reduce阶段有很大差异(其实可以用leftOuterJoin来实现该功能，只保留右rdd对应的值为None的记录，之所以没用时因为cogroup的reduce阶段会比subtractByKey的复杂很多以及多做一些不必要的工作，如要外排、右rdd的值也被保存等)。<br>reduce阶段：<br>1、创建一个HashMap<br>2、integrate方法通过SparkEnv.get.shuffleFetcher获得相应依赖rdd的map阶段的数据，并对每个数据进行相应的操作：<br>   左rdd: 将记录存到HashMap中，遇到相同key则将value合并到数组中。左rdd的记录就都在内存中<br>   右rdd: 遍历右rdd的记录，不断从HashMap中称除右rdd中出现的key<br>3、将(k,Seq(v))转化成(k,v)列表</p>
 <p><em>note:从实现可以看出subtractByKey用于rdd1比rdd2少很多的情况，因为rdd1是存在内存，rdd2只要遍历stream即可。如果rdd1很大，且reduce数较少的情况可能发生OOM。如果rdd1很大可以考虑使用cogroup来实现</em></p>
-<h2 id="transform"><a href="#transform" class="headerlink" title="transform"></a>transform</h2><h3 id="mapValues"><a href="#mapValues" class="headerlink" title="mapValues"></a>mapValues</h3><p>mapValues(f)，key不变，只对value进行f操作。<br>使用MappedValuesRDD。compute方法：</p>
-<pre><code>firstParent[Product2[K, V]].iterator(split, context).map { case Product2(k ,v) =&gt; (k, f(v)) }
-</code></pre><h3 id="flatMapValues"><a href="#flatMapValues" class="headerlink" title="flatMapValues"></a>flatMapValues</h3><p>作用于(k,Iterator(v))的数据集合。<br>flatMapValues(f)<br>使用FlatMappedValuesRDD，其compute方法为：</p>
-<pre><code>override def compute(split: Partition, context: TaskContext) = {
-    firstParent[Product2[K, V]].iterator(split, context).flatMap { case Product2(k, v) =&gt;
-      f(v).map(x =&gt; (k, x))
-    }
-}
-</code></pre><p>原理是 对value=Iterator(v)进行操作后(如将该集合拆开)，然后对生成的每个v 添加key形成Iterator(k,v), 而flatMap则是遍历新生成的Iterator(k,v).iterator从而输出各个kv</p>
+<h2 id="transform"><a href="#transform" class="headerlink" title="transform"></a>transform</h2><h3 id="mapValues"><a href="#mapValues" class="headerlink" title="mapValues"></a>mapValues</h3><p>mapValues(f)，key不变，只对value进行f操作。<br>使用MappedValuesRDD。compute方法：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">firstParent[<span class="type">Product2</span>[<span class="type">K</span>, <span class="type">V</span>]].iterator(split, context).map &#123; <span class="keyword">case</span> <span class="type">Product2</span>(k ,v) =&gt; (k, f(v)) &#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="flatMapValues"><a href="#flatMapValues" class="headerlink" title="flatMapValues"></a>flatMapValues</h3><p>作用于(k,Iterator(v))的数据集合。<br>flatMapValues(f)<br>使用FlatMappedValuesRDD，其compute方法为：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">compute</span></span>(split: <span class="type">Partition</span>, context: <span class="type">TaskContext</span>) = &#123;</span><br><span class="line">    firstParent[<span class="type">Product2</span>[<span class="type">K</span>, <span class="type">V</span>]].iterator(split, context).flatMap &#123; <span class="keyword">case</span> <span class="type">Product2</span>(k, v) =&gt;</span><br><span class="line">      f(v).map(x =&gt; (k, x))</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>原理是 对value=Iterator(v)进行操作后(如将该集合拆开)，然后对生成的每个v 添加key形成Iterator(k,v), 而flatMap则是遍历新生成的Iterator(k,v).iterator从而输出各个kv</p>
 <h3 id="keys"><a href="#keys" class="headerlink" title="keys"></a>keys</h3><p>返回key数据集合 map(._1)</p>
 <h3 id="values"><a href="#values" class="headerlink" title="values"></a>values</h3><p>返回value数据集合 map(._2)</p>
 <h3 id="sortByKey"><a href="#sortByKey" class="headerlink" title="sortByKey"></a>sortByKey</h3><p>该方法在OrderedRDDFunctions中，实现了按key进行排序。<br>原理：采用RangePartitioner而不是HashPartitioner。<br>RangePartitioner是对原数据集进行抽样得到sample，然后得到sample的key，对这些key进行排序，然后根据分区数来设置几分位点的值rangeBounds(<font color="red">初始化rangeBounds时的sample会触发count以及collect action</font>)。这样在shuffle时就会按key在rangeBounds属于哪个范围来决定所在分区，此时已经保证前一个分区都小于后一个分区(升序例)。<br>shuffle结束后对每个分区的数据按key进行排序，这样就实现了按key排序(<font color="red">此过程是将ite.toArray到本地，然后按key排序。当数据倾斜时有可能OOM</font>)。<br><em>note:如果数据集中key全部都一样，分区为3个，这样所有数据都会分到第一个分区，其他分区的元素个数为0，导致数据倾斜</em></p>
 <h2 id="action"><a href="#action" class="headerlink" title="action"></a>action</h2><h3 id="reduceByKeyLocally"><a href="#reduceByKeyLocally" class="headerlink" title="reduceByKeyLocally"></a>reduceByKeyLocally</h3><p>reduceByKeyLocally(func)不要和reduceByKey混淆,它是一个action。该方法主要用于将RDD[K,V]转化成drvier上的Map[K,V]<br>原理：<br>1、创建map<br>2、调用mapParitition对整个分区进行操作，具体是遍历该分区上的kv，判断key是否在map中，不在的话直接将该kvpair放到map中，否则将map中该key的value按func与v进行更新。该过程得到的是Iterator[HashMap]类型，即将各个分区转变成了一个HashMap<br>3、调用reduce。reduce中的方法是将两个map进行合并，即先在各分区上进行map合并(各分区就一个map)，然后将各分区的map传到driver进行map的两两合并得到最终结果。</p>
 <h3 id="collectAsMap"><a href="#collectAsMap" class="headerlink" title="collectAsMap"></a>collectAsMap</h3><p>将RDD转成Map。<br>先调用collect()将kvparis汇总到driver上，然后将kvpairs放到Map中。</p>
 <p><em>note：遇到相同key时后来的value会把之前的value给覆盖，如果需要将value进行合并，则用reduceByKeyLocally</em></p>
-<h3 id="lookup"><a href="#lookup" class="headerlink" title="lookup"></a>lookup</h3><p>通过key获得其所有的value。</p>
-<pre><code>def lookup(key: K): Seq[V] = {
-    self.partitioner match {
-      case Some(p) =&gt;
-        val index = p.getPartition(key)
-        def process(it: Iterator[(K, V)]): Seq[V] = {
-          val buf = new ArrayBuffer[V]
-          for ((k, v) &lt;- it if k == key) {
-            buf += v
-          }
-          buf
-        }
-        val res = self.context.runJob(self, process _, Array(index), false)
-        res(0)
-      case None =&gt;
-        self.filter(_._1 == key).map(_._2).collect()
-    }
-}
-</code></pre><p>当该RDD有自己的partitioner时，即key已经按partitioner分好。则可以通过partitioner.getPartition(key)找到所在分区，从该分区中获得数据即可。<br>否则通过filter获得k = key的记录，通过map获得value，然后collect()输出value.</p>
+<h3 id="lookup"><a href="#lookup" class="headerlink" title="lookup"></a>lookup</h3><p>通过key获得其所有的value。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">lookup</span></span>(key: <span class="type">K</span>): <span class="type">Seq</span>[<span class="type">V</span>] = &#123;</span><br><span class="line">    self.partitioner <span class="keyword">match</span> &#123;</span><br><span class="line">      <span class="keyword">case</span> <span class="type">Some</span>(p) =&gt;</span><br><span class="line">        <span class="keyword">val</span> index = p.getPartition(key)</span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">process</span></span>(it: <span class="type">Iterator</span>[(<span class="type">K</span>, <span class="type">V</span>)]): <span class="type">Seq</span>[<span class="type">V</span>] = &#123;</span><br><span class="line">          <span class="keyword">val</span> buf = <span class="keyword">new</span> <span class="type">ArrayBuffer</span>[<span class="type">V</span>]</span><br><span class="line">          <span class="keyword">for</span> ((k, v) &lt;- it <span class="keyword">if</span> k == key) &#123;</span><br><span class="line">            buf += v</span><br><span class="line">          &#125;</span><br><span class="line">          buf</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">val</span> res = self.context.runJob(self, process _, <span class="type">Array</span>(index), <span class="literal">false</span>)</span><br><span class="line">        res(<span class="number">0</span>)</span><br><span class="line">      <span class="keyword">case</span> <span class="type">None</span> =&gt;</span><br><span class="line">        self.filter(_._1 == key).map(_._2).collect()</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>当该RDD有自己的partitioner时，即key已经按partitioner分好。则可以通过partitioner.getPartition(key)找到所在分区，从该分区中获得数据即可。<br>否则通过filter获得k = key的记录，通过map获得value，然后collect()输出value.</p>
   
 	</div>
 		<footer class="article-footer clearfix">
@@ -478,14 +305,6 @@ new ExternalAppendOnlyMap[K, CoGroupValue, CoGroupCombiner](
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -494,15 +313,23 @@ new ExternalAppendOnlyMap[K, CoGroupValue, CoGroupCombiner](
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -514,6 +341,14 @@ new ExternalAppendOnlyMap[K, CoGroupValue, CoGroupCombiner](
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -522,19 +357,11 @@ new ExternalAppendOnlyMap[K, CoGroupValue, CoGroupCombiner](
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -547,7 +374,7 @@ new ExternalAppendOnlyMap[K, CoGroupValue, CoGroupCombiner](
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

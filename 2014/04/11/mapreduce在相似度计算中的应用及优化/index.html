@@ -11,17 +11,17 @@
     
 
     
-    <meta name="description" content="需求：计算用户的相似度，有用户列表U和特征列表F以及用户和特征的关系。 根据 ∩ 的交集数来判断U1和U2的相似度。解决方法： 一、用户维度的Join最暴力低效的方法，因为用户量一般很大，所以join效率极低。一般不考虑。 二、特征维度将用户对特征的矩阵转成特征对用户的矩阵。 1、转成特征对用户的矩阵：F1-&amp;gt;U1…Unmap: context.write(F, U) reduce: con">
+    <meta name="description" content="需求：计算用户的相似度，有用户列表U和特征列表F以及用户和特征的关系。 根据 ∩ 的交集数来判断U1和U2的相似度。解决方法： 一、用户维度的Join最暴力低效的方法，因为用户量一般很大，所以join效率极低。一般不考虑。 二、特征维度将用户对特征的矩阵转成特征对用户的矩阵。 1、转成特征对用户的矩阵：F1-&amp;gt;U1…Un12map: context.write(F, U)reduce: co">
 <meta name="keywords" content="hadoop,mapreduce,相似度计算">
 <meta property="og:type" content="article">
 <meta property="og:title" content="MapReduce在相似度计算中的应用及优化">
 <meta property="og:url" content="http://yoursite.com/2014/04/11/mapreduce在相似度计算中的应用及优化/index.html">
 <meta property="og:site_name" content="DataKnocker">
-<meta property="og:description" content="需求：计算用户的相似度，有用户列表U和特征列表F以及用户和特征的关系。 根据 ∩ 的交集数来判断U1和U2的相似度。解决方法： 一、用户维度的Join最暴力低效的方法，因为用户量一般很大，所以join效率极低。一般不考虑。 二、特征维度将用户对特征的矩阵转成特征对用户的矩阵。 1、转成特征对用户的矩阵：F1-&amp;gt;U1…Unmap: context.write(F, U) reduce: con">
-<meta property="og:updated_time" content="2014-07-25T00:41:06.000Z">
+<meta property="og:description" content="需求：计算用户的相似度，有用户列表U和特征列表F以及用户和特征的关系。 根据 ∩ 的交集数来判断U1和U2的相似度。解决方法： 一、用户维度的Join最暴力低效的方法，因为用户量一般很大，所以join效率极低。一般不考虑。 二、特征维度将用户对特征的矩阵转成特征对用户的矩阵。 1、转成特征对用户的矩阵：F1-&amp;gt;U1…Un12map: context.write(F, U)reduce: co">
+<meta property="og:updated_time" content="2018-01-01T02:07:11.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="MapReduce在相似度计算中的应用及优化">
-<meta name="twitter:description" content="需求：计算用户的相似度，有用户列表U和特征列表F以及用户和特征的关系。 根据 ∩ 的交集数来判断U1和U2的相似度。解决方法： 一、用户维度的Join最暴力低效的方法，因为用户量一般很大，所以join效率极低。一般不考虑。 二、特征维度将用户对特征的矩阵转成特征对用户的矩阵。 1、转成特征对用户的矩阵：F1-&amp;gt;U1…Unmap: context.write(F, U) reduce: con">
+<meta name="twitter:description" content="需求：计算用户的相似度，有用户列表U和特征列表F以及用户和特征的关系。 根据 ∩ 的交集数来判断U1和U2的相似度。解决方法： 一、用户维度的Join最暴力低效的方法，因为用户量一般很大，所以join效率极低。一般不考虑。 二、特征维度将用户对特征的矩阵转成特征对用户的矩阵。 1、转成特征对用户的矩阵：F1-&amp;gt;U1…Un12map: context.write(F, U)reduce: co">
 
     
     <link rel="alternative" href="/atom.xml" title="DataKnocker" type="application/atom+xml">
@@ -108,140 +108,19 @@
 		<p>需求：计算用户的相似度，有用户列表U和特征列表F以及用户和特征的关系<u,f>。 根据<u1,fn> ∩ <u2, fm="">的交集数来判断U1和U2的相似度。<br>解决方法：</u2,></u1,fn></u,f></p>
 <h2 id="一、用户维度的Join"><a href="#一、用户维度的Join" class="headerlink" title="一、用户维度的Join"></a>一、用户维度的Join</h2><p>最暴力低效的方法，因为用户量一般很大，所以join效率极低。一般不考虑。</p>
 <h2 id="二、特征维度"><a href="#二、特征维度" class="headerlink" title="二、特征维度"></a>二、特征维度</h2><p>将用户对特征的矩阵转成特征对用户的矩阵。</p>
-<h3 id="1、转成特征对用户的矩阵：F1-gt-U1…Un"><a href="#1、转成特征对用户的矩阵：F1-gt-U1…Un" class="headerlink" title="1、转成特征对用户的矩阵：F1-&gt;U1…Un"></a>1、转成特征对用户的矩阵：F1-&gt;U1…Un</h3><pre><code>map: context.write(F, U)
-reduce: context.write(F,List&lt;U&gt;)
-</code></pre><h3 id="2、计算相似度"><a href="#2、计算相似度" class="headerlink" title="2、计算相似度"></a>2、计算相似度</h3><p>各种解决方案如下：</p>
-<h4 id="1-直接输出UxUy-pair-IO密集型"><a href="#1-直接输出UxUy-pair-IO密集型" class="headerlink" title="(1)直接输出UxUy pair(IO密集型)"></a>(1)直接输出UxUy pair(IO密集型)</h4><p>map:  将user list拆成各user pair对并输出，具体如下所示范例(代码只是伪码)：</p>
-<pre><code>String data[] = value.toSting().split(&quot;\t&quot;);
-String users[] = data[1].split(&quot;,&quot;);//user间以,分隔
-for(int i = 0; i &lt; users.length; i ++){
-   for(int j = i + 1; j &lt; users.length; j ++){
-        //判断users[i]与users[j]的大小 
-      context.write(users[i]+&quot;_&quot;+users[j], 1);//这里要加上users[i]与users[j]大小的判断，小放前，大放后，便于后面的操作
-    }
-}
-</code></pre><p>reduce: 对每个user pair的value list进行求和，即是这两个用户的相似度<br>缺点：map端输出的user pair很多(O(N*N))，使reducer的shuffle成为瓶颈</p>
-<h4 id="2-按各user进行聚合-计算密集型"><a href="#2-按各user进行聚合-计算密集型" class="headerlink" title="(2)按各user进行聚合(计算密集型)"></a>(2)按各user进行聚合(计算密集型)</h4><p>&lt; u1,u3,u5,u2 &gt;，按(1)的输出是&lt; u1_u3–&gt;1 &gt;,  &lt; u1_u5–&gt;1 &gt;,  &lt; u1_u2–&gt;1&gt;, &lt; u3_u5–&gt;1 &gt;, &lt; u3_u2–&gt;1 &gt;,&lt; u5_u2–&gt;1 &gt;。  (1是次数)<br>按user聚合的结果是：&lt; u1–&gt;u2,u3,u5 &gt; ,&lt; u2–&gt;u3,u5 &gt;,&lt; u3–&gt;u5 &gt;，输出数为N(U)-1。<br>该方案需要对user list进行排序，便于后面reduce进行按userid聚合，如一个user list输出的是&lt; u1–&gt;u2,u3,u5 &gt;，另一个是&lt; u1–&gt;u3,u5 &gt;,这样reduce时就是u1-&gt;u2,u3,u5,u3,u5。<br>而如果不排序的话就需要再弄一个job进行操作：如&lt; u1–&gt;u2,u3,u5 &gt;, &lt; u2–&gt;u1,u3,u5 &gt; 。 这样会得到&lt; u1_u2 &gt;与&lt; u2_u1 &gt;，还需要job进行一次合并求和处理。<br>mapper:</p>
-<pre><code>StringBuilder uuidListStr = new StringBuilder();
-String data[] = value.toString().split(&quot;\t&quot;);
-String uuidArr[] = data[1].split(&quot;,&quot;);
-Arrays.sort(uuidArr);
-for(int i = 0; i &lt; uuidArr.length; i ++){
-    for(int j = i + 1; j &lt; uuidArr.length; j ++){
-        uuidListStr.append(uuidArr[j]).append(&quot;,&quot;);
-    }
-    if(uuidListStr.length() &gt; 0){
-        uuidListStr.deleteCharAt(uuidListStr.length() - 1);
-        context.write(new Text(uuidArr[i]), new Text(uuidListStr.toString()));
-        uuidListStr = new StringBuilder();
-    }
-}        
-</code></pre><p>reduce: 会得到u1-&gt;u2,u3,u5,u3,u5,  计算values中各用户出现的个数&lt; ux,count &gt;, 然后输出count即可</p>
-<pre><code>//利用hashMap来管理各user的次数
-Map&lt;String, Integer&gt; countMap = new HashMap&lt;String, Integer&gt;();
-for (Text v : values) { //每个v都是u1,u2,u3这样的形式
-    uuids = v.toString().split(&quot;,&quot;);
-    for (int i = 0; i &lt; uuids.length; i++) {
-        uuid = uuids[i];
-        tmp = countMap.get(uuid);
-        if (null == tmp) {
-            countMap.put(uuid, new Integer(1));
-        } else {
-            countMap.put(uuid, tmp + 1);
-        }
-    }
-}
-for (Map.Entry&lt;String, Integer&gt; entry : countMap.entrySet()) {
-    context.write(new Text(key.toString() + &quot;_&quot; + entry.getKey()), new IntWritable(entry.getValue()));
-}
-</code></pre><p>该方案有个瓶颈是map中自己实现的排序，可能某个F下用户数特别大，会造成数据倾斜，有的user list特别大，排序花费时间长，导致整个任务变慢(计算密集型)。一种思路是将splitSize变小，如从默认的64M变成8M，这样InputSplit数将变多，即Mapper变多，各个Mapper处理的数据量变小，充分发挥并行的优势。<br>具体设置splitSize的代码：</p>
-<pre><code>//splitSize = max(minSize, min(maxSize, blockSize))
-conf.set(&quot;mapred.min.split.size&quot;, 8 * 1024 * 1024 + &quot;&quot;);
-conf.set(&quot;mapred.max.split.size&quot;, 8 * 1024 * 1024 + &quot;&quot;);
-</code></pre><h4 id="3-排序放到Reducer端"><a href="#3-排序放到Reducer端" class="headerlink" title="(3)排序放到Reducer端"></a>(3)排序放到Reducer端</h4><p>在转置特征对用户的矩阵的job中reduce已经得到了各F的user list，则可以直接对user list进行排序并输出按user聚合的结果。</p>
+<h3 id="1、转成特征对用户的矩阵：F1-gt-U1…Un"><a href="#1、转成特征对用户的矩阵：F1-gt-U1…Un" class="headerlink" title="1、转成特征对用户的矩阵：F1-&gt;U1…Un"></a>1、转成特征对用户的矩阵：F1-&gt;U1…Un</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">map: context.write(F, U)</span><br><span class="line">reduce: context.write(F,List&lt;U&gt;)</span><br></pre></td></tr></table></figure>
+<h3 id="2、计算相似度"><a href="#2、计算相似度" class="headerlink" title="2、计算相似度"></a>2、计算相似度</h3><p>各种解决方案如下：</p>
+<h4 id="1-直接输出UxUy-pair-IO密集型"><a href="#1-直接输出UxUy-pair-IO密集型" class="headerlink" title="(1)直接输出UxUy pair(IO密集型)"></a>(1)直接输出UxUy pair(IO密集型)</h4><p>map:  将user list拆成各user pair对并输出，具体如下所示范例(代码只是伪码)：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">String data[] = value.toSting().split(<span class="string">"\t"</span>);</span><br><span class="line">String users[] = data[<span class="number">1</span>].split(<span class="string">","</span>);<span class="comment">//user间以,分隔</span></span><br><span class="line"><span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; users.length; i ++)&#123;</span><br><span class="line"><span class="keyword">for</span>(<span class="keyword">int</span> j = i + <span class="number">1</span>; j &lt; users.length; j ++)&#123;</span><br><span class="line">        <span class="comment">//判断users[i]与users[j]的大小 </span></span><br><span class="line">context.write(users[i]+<span class="string">"_"</span>+users[j], <span class="number">1</span>);<span class="comment">//这里要加上users[i]与users[j]大小的判断，小放前，大放后，便于后面的操作</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>reduce: 对每个user pair的value list进行求和，即是这两个用户的相似度<br>缺点：map端输出的user pair很多(O(N*N))，使reducer的shuffle成为瓶颈</p>
+<h4 id="2-按各user进行聚合-计算密集型"><a href="#2-按各user进行聚合-计算密集型" class="headerlink" title="(2)按各user进行聚合(计算密集型)"></a>(2)按各user进行聚合(计算密集型)</h4><p>&lt; u1,u3,u5,u2 &gt;，按(1)的输出是&lt; u1_u3–&gt;1 &gt;,  &lt; u1_u5–&gt;1 &gt;,  &lt; u1_u2–&gt;1&gt;, &lt; u3_u5–&gt;1 &gt;, &lt; u3_u2–&gt;1 &gt;,&lt; u5_u2–&gt;1 &gt;。  (1是次数)<br>按user聚合的结果是：&lt; u1–&gt;u2,u3,u5 &gt; ,&lt; u2–&gt;u3,u5 &gt;,&lt; u3–&gt;u5 &gt;，输出数为N(U)-1。<br>该方案需要对user list进行排序，便于后面reduce进行按userid聚合，如一个user list输出的是&lt; u1–&gt;u2,u3,u5 &gt;，另一个是&lt; u1–&gt;u3,u5 &gt;,这样reduce时就是u1-&gt;u2,u3,u5,u3,u5。<br>而如果不排序的话就需要再弄一个job进行操作：如&lt; u1–&gt;u2,u3,u5 &gt;, &lt; u2–&gt;u1,u3,u5 &gt; 。 这样会得到&lt; u1_u2 &gt;与&lt; u2_u1 &gt;，还需要job进行一次合并求和处理。<br>mapper:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">    StringBuilder uuidListStr = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">    String data[] = value.toString().split(<span class="string">"\t"</span>);</span><br><span class="line">    String uuidArr[] = data[<span class="number">1</span>].split(<span class="string">","</span>);</span><br><span class="line">    Arrays.sort(uuidArr);</span><br><span class="line">    <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; uuidArr.length; i ++)&#123;</span><br><span class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> j = i + <span class="number">1</span>; j &lt; uuidArr.length; j ++)&#123;</span><br><span class="line">            uuidListStr.append(uuidArr[j]).append(<span class="string">","</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    	<span class="keyword">if</span>(uuidListStr.length() &gt; <span class="number">0</span>)&#123;</span><br><span class="line">    	    uuidListStr.deleteCharAt(uuidListStr.length() - <span class="number">1</span>);</span><br><span class="line">    	    context.write(<span class="keyword">new</span> Text(uuidArr[i]), <span class="keyword">new</span> Text(uuidListStr.toString()));</span><br><span class="line">    	    uuidListStr = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">    	&#125;</span><br><span class="line">    &#125; </span><br><span class="line">```       </span><br><span class="line">reduce: 会得到u1-&gt;u2,u3,u5,u3,u5,  计算values中各用户出现的个数&lt; ux,count &gt;, 然后输出count即可</span><br><span class="line">```java</span><br><span class="line">    <span class="comment">//利用hashMap来管理各user的次数</span></span><br><span class="line">    Map&lt;String, Integer&gt; countMap = <span class="keyword">new</span> HashMap&lt;String, Integer&gt;();</span><br><span class="line">    <span class="keyword">for</span> (Text v : values) &#123; <span class="comment">//每个v都是u1,u2,u3这样的形式</span></span><br><span class="line">        uuids = v.toString().split(<span class="string">","</span>);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; uuids.length; i++) &#123;</span><br><span class="line">            uuid = uuids[i];</span><br><span class="line">            tmp = countMap.get(uuid);</span><br><span class="line">            <span class="keyword">if</span> (<span class="keyword">null</span> == tmp) &#123;</span><br><span class="line">                countMap.put(uuid, <span class="keyword">new</span> Integer(<span class="number">1</span>));</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                countMap.put(uuid, tmp + <span class="number">1</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">for</span> (Map.Entry&lt;String, Integer&gt; entry : countMap.entrySet()) &#123;</span><br><span class="line">        context.write(<span class="keyword">new</span> Text(key.toString() + <span class="string">"_"</span> + entry.getKey()), <span class="keyword">new</span> IntWritable(entry.getValue()));</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<p>该方案有个瓶颈是map中自己实现的排序，可能某个F下用户数特别大，会造成数据倾斜，有的user list特别大，排序花费时间长，导致整个任务变慢(计算密集型)。一种思路是将splitSize变小，如从默认的64M变成8M，这样InputSplit数将变多，即Mapper变多，各个Mapper处理的数据量变小，充分发挥并行的优势。<br>具体设置splitSize的代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//splitSize = max(minSize, min(maxSize, blockSize))</span></span><br><span class="line">conf.set(<span class="string">"mapred.min.split.size"</span>, <span class="number">8</span> * <span class="number">1024</span> * <span class="number">1024</span> + <span class="string">""</span>);</span><br><span class="line">conf.set(<span class="string">"mapred.max.split.size"</span>, <span class="number">8</span> * <span class="number">1024</span> * <span class="number">1024</span> + <span class="string">""</span>);</span><br></pre></td></tr></table></figure></p>
+<h4 id="3-排序放到Reducer端"><a href="#3-排序放到Reducer端" class="headerlink" title="(3)排序放到Reducer端"></a>(3)排序放到Reducer端</h4><p>在转置特征对用户的矩阵的job中reduce已经得到了各F的user list，则可以直接对user list进行排序并输出按user聚合的结果。</p>
 <h5 id="a、reduce方法中对user-list进行排序"><a href="#a、reduce方法中对user-list进行排序" class="headerlink" title="a、reduce方法中对user list进行排序"></a>a、reduce方法中对user list进行排序</h5><p>会遇到和(2)方案中一样的数据倾斜问题，且无法像(2)那样减少splitSize来减少各Mapper的处理数据量，增大Mapper数。 该方案一般会作死，数据量大时不用考虑。</p>
-<h5 id="b、利用Reducer的Sort功能"><a href="#b、利用Reducer的Sort功能" class="headerlink" title="b、利用Reducer的Sort功能"></a>b、利用Reducer的Sort功能</h5><p>需要覆盖的类：<br>MapOutputKey：其中的compareTo用于map/reduce各阶段进行排序的依据<br>Partitioner: 用于partition分到哪个区<br>GroupingComparator：用于reduce的sort–&gt;reduce中 key迭代时的分组。<br>Reducer的各阶段为：Shuffle/Merge,  Sort, Reduce, Output。其中Sort与Reduce是并行的。Sort迭代遍历得到的记录会进行grouping,从而得到reduce方法中的values。<br>Sort会将各文件按Key(MapOutputKey)的大小建最小堆，每取一个最小Key的记录, 都会到GroupingComparator进行判断(具体源码没研究，不过这里面的实现应该是会保存上一个记录的Key, 如果当前记录与上一Key 通过GroupingComparator方法得到的结果是一样的话，则把当前记录加到group的记录列表中，该列表元素顺序是按插入顺序的；如果不一样的话，就将Key以前列表的数据传到reduce方法，并清空group的记录列表)<br>我们可以创建自己的MapOutputKey</p>
-<pre><code>public class GeoMapOutputKey implements Writable,WritableComparable&lt;GeoMapOutputKey&gt; {
-    private Text geohash = new Text();//相当于Feature
-    private Text uuid = new Text();  //相当于user
-    public GeoMapOutputKey(){}
-    public GeoMapOutputKey(String geohash, String uuid){
-        this.geohash.set(geohash);
-        this.uuid.set(uuid);
-    }
-    public Text getGeohash() {
-        return geohash;
-    }
-    public void setGeohash(Text geohash) {
-        this.geohash = geohash;
-    }
-    public Text getUuid() {
-        return uuid;
-    }
-    public void setUuid(Text uuid) {
-        this.uuid = uuid;
-    }
-    @Override
-    public void write(DataOutput dataOutput) throws IOException {
-        geohash.write(dataOutput);
-        uuid.write(dataOutput);
-    }
-    @Override
-    public void readFields(DataInput dataInput) throws IOException {
-        geohash.readFields(dataInput);
-        uuid.readFields(dataInput);
-    }
-    @Override
-    //重点是这个compareTo方法，会先根据geohash进行排序，再根据uuid进行排序
-    public int compareTo(GeoMapOutputKey o) {
-        int compareValue = this.geohash.compareTo(o.geohash);
-        if(compareValue == 0){
-            compareValue = this.uuid.compareTo(o.uuid);
-        }
-        return compareValue;
-    }
-    @Override
-    public int hashCode() {
-        return geohash.hashCode() * 163 + uuid.hashCode() * 163;
-    }
-    @Override
-    public boolean equals(Object o) {
-        if (o instanceof GeoMapOutputKey) {
-            GeoMapOutputKey ok = (GeoMapOutputKey) o;
-            return geohash.equals(ok.getGeohash()) &amp;&amp; uuid.equals(ok.getUuid());
-        }
-        return false;
-    }
-    @Override
-    public String toString() {
-        return geohash + &quot;\t&quot; + uuid;
-    }
-}
-</code></pre><p>通过这个GeoMapOutputKey，就可以保存先按Feature进行排序，再按user进行排序。(map输出有N行记录，Reducer默认情况下也要对这N行记录进行compare，所以性能没有什么影响)。<br>Mapper的map阶段的输出会调用Partitioner方法进行决定分区，默认情况下会按feature+user进行分区，我们需要按Feature进行分区，所以要覆盖：</p>
-<pre><code>public class GeoPartitioner extends Partitioner&lt;GeoMapOutputKey, Text&gt; {
-    @Override
-    public int getPartition(GeoMapOutputKey geoMapOutputKey, Text text, int numPartitions) {
-   //这里的geohash就是feature
-        return Math.abs(geoMapOutputKey.getGeohash().hashCode()) % numPartitions;
-    }
-}
-</code></pre><p>默认情况下Reducer的GroupingComparator会按Key进行grouping聚合操作，这样reduce方法中的key就是feature_u1这样的，没多大帮助，所以我们要自定义GroupingComparator，让相同feature的聚合在一起，即reduce方法中的key是feature。</p>
-<pre><code>public class GeoGroupingComparator extends WritableComparator {
-    protected GeoGroupingComparator() {
-        super(GeoMapOutputKey.class, true);
-    }
-    @Override
-    public int compare(WritableComparable a, WritableComparable b) {
-        GeoMapOutputKey ok1 = (GeoMapOutputKey) a;
-        GeoMapOutputKey ok2 = (GeoMapOutputKey) b;
-        //这里只对feature进行比较，即会按feature进行grouping聚合
-        return ok1.getGeohash().compareTo(ok2.getGeohash());
-    }
-}
-</code></pre><p>设置这两个类的代码：</p>
-<pre><code>job.setMapOutputKeyClass(GeoMapOutputKey.class);
-job.setGroupingComparatorClass(GeoGroupingComparator.class);
-</code></pre><p>通过这样的设置，就可以实现Sort最小堆是按先feature再user进行排序，而聚合时又是按feature进行聚合。<br>reduce中的key是<f,u1>,<f,u2>,<f,u5>中的某一个(第一个?)，value是&lt; u1,u2,u5 &gt;<br>这个job的输出是U1–&gt;u2,u3,u5这样的形式。<br>下一个job的mapper只要context(“u1”,”u2,u3,u5”)，而reducer和(2)中的reducer操作一样。</f,u5></f,u2></f,u1></p>
+<h5 id="b、利用Reducer的Sort功能"><a href="#b、利用Reducer的Sort功能" class="headerlink" title="b、利用Reducer的Sort功能"></a>b、利用Reducer的Sort功能</h5><p>需要覆盖的类：<br>MapOutputKey：其中的compareTo用于map/reduce各阶段进行排序的依据<br>Partitioner: 用于partition分到哪个区<br>GroupingComparator：用于reduce的sort–&gt;reduce中 key迭代时的分组。<br>Reducer的各阶段为：Shuffle/Merge,  Sort, Reduce, Output。其中Sort与Reduce是并行的。Sort迭代遍历得到的记录会进行grouping,从而得到reduce方法中的values。<br>Sort会将各文件按Key(MapOutputKey)的大小建最小堆，每取一个最小Key的记录, 都会到GroupingComparator进行判断(具体源码没研究，不过这里面的实现应该是会保存上一个记录的Key, 如果当前记录与上一Key 通过GroupingComparator方法得到的结果是一样的话，则把当前记录加到group的记录列表中，该列表元素顺序是按插入顺序的；如果不一样的话，就将Key以前列表的数据传到reduce方法，并清空group的记录列表)<br>我们可以创建自己的MapOutputKey<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">GeoMapOutputKey</span> <span class="keyword">implements</span> <span class="title">Writable</span>,<span class="title">WritableComparable</span>&lt;<span class="title">GeoMapOutputKey</span>&gt; </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> Text geohash = <span class="keyword">new</span> Text();<span class="comment">//相当于Feature</span></span><br><span class="line">    <span class="keyword">private</span> Text uuid = <span class="keyword">new</span> Text();  <span class="comment">//相当于user</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">GeoMapOutputKey</span><span class="params">()</span></span>&#123;&#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">GeoMapOutputKey</span><span class="params">(String geohash, String uuid)</span></span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.geohash.set(geohash);</span><br><span class="line">        <span class="keyword">this</span>.uuid.set(uuid);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> Text <span class="title">getGeohash</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> geohash;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setGeohash</span><span class="params">(Text geohash)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.geohash = geohash;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> Text <span class="title">getUuid</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> uuid;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setUuid</span><span class="params">(Text uuid)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.uuid = uuid;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">(DataOutput dataOutput)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">        geohash.write(dataOutput);</span><br><span class="line">        uuid.write(dataOutput);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">readFields</span><span class="params">(DataInput dataInput)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">        geohash.readFields(dataInput);</span><br><span class="line">        uuid.readFields(dataInput);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="comment">//重点是这个compareTo方法，会先根据geohash进行排序，再根据uuid进行排序</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">compareTo</span><span class="params">(GeoMapOutputKey o)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">int</span> compareValue = <span class="keyword">this</span>.geohash.compareTo(o.geohash);</span><br><span class="line">        <span class="keyword">if</span>(compareValue == <span class="number">0</span>)&#123;</span><br><span class="line">            compareValue = <span class="keyword">this</span>.uuid.compareTo(o.uuid);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> compareValue;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> geohash.hashCode() * <span class="number">163</span> + uuid.hashCode() * <span class="number">163</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object o)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (o <span class="keyword">instanceof</span> GeoMapOutputKey) &#123;</span><br><span class="line">            GeoMapOutputKey ok = (GeoMapOutputKey) o;</span><br><span class="line">            <span class="keyword">return</span> geohash.equals(ok.getGeohash()) &amp;&amp; uuid.equals(ok.getUuid());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> geohash + <span class="string">"\t"</span> + uuid;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>通过这个GeoMapOutputKey，就可以保存先按Feature进行排序，再按user进行排序。(map输出有N行记录，Reducer默认情况下也要对这N行记录进行compare，所以性能没有什么影响)。<br>Mapper的map阶段的输出会调用Partitioner方法进行决定分区，默认情况下会按feature+user进行分区，我们需要按Feature进行分区，所以要覆盖：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">GeoPartitioner</span> <span class="keyword">extends</span> <span class="title">Partitioner</span>&lt;<span class="title">GeoMapOutputKey</span>, <span class="title">Text</span>&gt; </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getPartition</span><span class="params">(GeoMapOutputKey geoMapOutputKey, Text text, <span class="keyword">int</span> numPartitions)</span> </span>&#123;</span><br><span class="line">   <span class="comment">//这里的geohash就是feature</span></span><br><span class="line">        <span class="keyword">return</span> Math.abs(geoMapOutputKey.getGeohash().hashCode()) % numPartitions;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>默认情况下Reducer的GroupingComparator会按Key进行grouping聚合操作，这样reduce方法中的key就是feature_u1这样的，没多大帮助，所以我们要自定义GroupingComparator，让相同feature的聚合在一起，即reduce方法中的key是feature。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">GeoGroupingComparator</span> <span class="keyword">extends</span> <span class="title">WritableComparator</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="title">GeoGroupingComparator</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(GeoMapOutputKey.class, <span class="keyword">true</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">compare</span><span class="params">(WritableComparable a, WritableComparable b)</span> </span>&#123;</span><br><span class="line">        GeoMapOutputKey ok1 = (GeoMapOutputKey) a;</span><br><span class="line">        GeoMapOutputKey ok2 = (GeoMapOutputKey) b;</span><br><span class="line">        <span class="comment">//这里只对feature进行比较，即会按feature进行grouping聚合</span></span><br><span class="line">        <span class="keyword">return</span> ok1.getGeohash().compareTo(ok2.getGeohash());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>设置这两个类的代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">job.setMapOutputKeyClass(GeoMapOutputKey.class);</span><br><span class="line">job.setGroupingComparatorClass(GeoGroupingComparator.class);</span><br></pre></td></tr></table></figure></p>
+<p>通过这样的设置，就可以实现Sort最小堆是按先feature再user进行排序，而聚合时又是按feature进行聚合。<br>reduce中的key是<f,u1>,<f,u2>,<f,u5>中的某一个(第一个?)，value是&lt; u1,u2,u5 &gt;<br>这个job的输出是U1–&gt;u2,u3,u5这样的形式。<br>下一个job的mapper只要context(“u1”,”u2,u3,u5”)，而reducer和(2)中的reducer操作一样。</f,u5></f,u2></f,u1></p>
 <p>第(3)种方案是最优的，处理速度比前面的高效很多。</p>
   
 	</div>
@@ -386,14 +265,6 @@ job.setGroupingComparatorClass(GeoGroupingComparator.class);
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -402,15 +273,23 @@ job.setGroupingComparatorClass(GeoGroupingComparator.class);
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -422,6 +301,14 @@ job.setGroupingComparatorClass(GeoGroupingComparator.class);
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -430,19 +317,11 @@ job.setGroupingComparatorClass(GeoGroupingComparator.class);
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -455,7 +334,7 @@ job.setGroupingComparatorClass(GeoGroupingComparator.class);
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

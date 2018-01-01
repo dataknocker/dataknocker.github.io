@@ -19,7 +19,7 @@
 <meta property="og:site_name" content="DataKnocker">
 <meta property="og:description" content="AppendOnlyMap/ExternalAppendOnlyMap在spark被广泛使用，如join中shuffle的reduce阶段以及combineByKey操作等。 AppendOnlyMapAppendOnlyMap是spark自己实现的Map，只能添加数据，不能remove。该Map是使用开放定址法中的二次探测法，不用自带的HashMap等应该是节省空间，提高性能。数组中a[i]=k">
 <meta property="og:image" content="http://yoursite.com/img/spark/ExternalAppendOnlyMap.svg">
-<meta property="og:updated_time" content="2014-08-21T04:40:16.000Z">
+<meta property="og:updated_time" content="2018-01-01T02:16:25.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="spark的外排:AppendOnlyMap与ExternalAppendOnlyMap">
 <meta name="twitter:description" content="AppendOnlyMap/ExternalAppendOnlyMap在spark被广泛使用，如join中shuffle的reduce阶段以及combineByKey操作等。 AppendOnlyMapAppendOnlyMap是spark自己实现的Map，只能添加数据，不能remove。该Map是使用开放定址法中的二次探测法，不用自带的HashMap等应该是节省空间，提高性能。数组中a[i]=k">
@@ -111,35 +111,8 @@
 <h2 id="AppendOnlyMap"><a href="#AppendOnlyMap" class="headerlink" title="AppendOnlyMap"></a>AppendOnlyMap</h2><p>AppendOnlyMap是spark自己实现的Map，只能添加数据，不能remove。该Map是使用开放定址法中的二次探测法，不用自带的HashMap等应该是节省空间，提高性能。<br>数组中a[i]=keyi, a[i+1]=valuei, 即用两个位置来存储kv对。<br>growThreshold=LOAD_FACTOR * capacity,  当添加的元素超过该值时，数组会进行grow, capacity翻倍，同时所有的kv都会进行rehash重新分配位置。<br>主要方法：</p>
 <h3 id="apply"><a href="#apply" class="headerlink" title="apply"></a>apply</h3><p>即调用Map(key)访问value时。根据key的hash(具体是murmur3_32)找到位置，如果目标位置的key与要查找的key不一样，则使用二次探测法继续查找，直到找到为止。</p>
 <h3 id="update"><a href="#update" class="headerlink" title="update"></a>update</h3><p>找到对应key的value位置，将新value覆盖原value。</p>
-<h3 id="changeValue"><a href="#changeValue" class="headerlink" title="changeValue"></a>changeValue</h3><p>spark中用的比较多的方法</p>
-<pre><code>def changeValue(key: K, updateFunc: (Boolean, V) =&gt; V): V = {
-    ...
-    var pos = rehash(k.hashCode) &amp; mask
-    var i = 1
-    while (true) {
-      val curKey = data(2 * pos)
-      if (k.eq(curKey) || k.equals(curKey)) {
-          //当对应的key存在时，updateFunc的第一个参数hadValue=true
-        val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
-        data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
-        return newValue
-      } else if (curKey.eq(null)) {
-          //当对应key不存在时，updateFunc的第一个参数hadValue=false
-        val newValue = updateFunc(false, null.asInstanceOf[V])
-        data(2 * pos) = k
-        data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
-        incrementSize()
-        return newValue
-      } else {
-          //二次探测法代码
-        val delta = i
-        pos = (pos + delta) &amp; mask
-        i += 1
-      }
-    }
-    ...
-}
-</code></pre><p>该方法最核心的其实是外部传进来的updateFunc(hadValue, oldValue), updateFunc一般是当hadValue为false时createCombiner(v)作为新value， hadValue为true时mergeValue(oldValue,v),将v加到oldValue中。</p>
+<h3 id="changeValue"><a href="#changeValue" class="headerlink" title="changeValue"></a>changeValue</h3><p>spark中用的比较多的方法<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">changeValue</span></span>(key: <span class="type">K</span>, updateFunc: (<span class="type">Boolean</span>, <span class="type">V</span>) =&gt; <span class="type">V</span>): <span class="type">V</span> = &#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">var</span> pos = rehash(k.hashCode) &amp; mask</span><br><span class="line">    <span class="keyword">var</span> i = <span class="number">1</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">      <span class="keyword">val</span> curKey = data(<span class="number">2</span> * pos)</span><br><span class="line">      <span class="keyword">if</span> (k.eq(curKey) || k.equals(curKey)) &#123;</span><br><span class="line">      	<span class="comment">//当对应的key存在时，updateFunc的第一个参数hadValue=true</span></span><br><span class="line">        <span class="keyword">val</span> newValue = updateFunc(<span class="literal">true</span>, data(<span class="number">2</span> * pos + <span class="number">1</span>).asInstanceOf[<span class="type">V</span>])</span><br><span class="line">        data(<span class="number">2</span> * pos + <span class="number">1</span>) = newValue.asInstanceOf[<span class="type">AnyRef</span>]</span><br><span class="line">        <span class="keyword">return</span> newValue</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="keyword">if</span> (curKey.eq(<span class="literal">null</span>)) &#123;</span><br><span class="line">      	<span class="comment">//当对应key不存在时，updateFunc的第一个参数hadValue=false</span></span><br><span class="line">        <span class="keyword">val</span> newValue = updateFunc(<span class="literal">false</span>, <span class="literal">null</span>.asInstanceOf[<span class="type">V</span>])</span><br><span class="line">        data(<span class="number">2</span> * pos) = k</span><br><span class="line">        data(<span class="number">2</span> * pos + <span class="number">1</span>) = newValue.asInstanceOf[<span class="type">AnyRef</span>]</span><br><span class="line">        incrementSize()</span><br><span class="line">        <span class="keyword">return</span> newValue</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      	<span class="comment">//二次探测法代码</span></span><br><span class="line">        <span class="keyword">val</span> delta = i</span><br><span class="line">        pos = (pos + delta) &amp; mask</span><br><span class="line">        i += <span class="number">1</span></span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>该方法最核心的其实是外部传进来的updateFunc(hadValue, oldValue), updateFunc一般是当hadValue为false时createCombiner(v)作为新value， hadValue为true时mergeValue(oldValue,v),将v加到oldValue中。</p>
 <h3 id="iterator"><a href="#iterator" class="headerlink" title="iterator"></a>iterator</h3><p>一般是在RDD的compute中会调用该方法，作为RDD操作的Iterator, 即其下游RDD可以为此为数据源。主要也是实现hasNext和next方法，它们都调用了nextValue方法。<br>nextValue则从pos(初始化是0)开始遍历，直到找到data(2*pos)!=null的，则将结果返回。<br>hasNext是判断nextValue()!=null。<br>next是得到nextValue()的返回值，且将pos+=1。</p>
 <h3 id="destructiveSortedIterator"><a href="#destructiveSortedIterator" class="headerlink" title="destructiveSortedIterator"></a>destructiveSortedIterator</h3><p>转化成一般的数组，并按key对kv进行排序。失去了Map的特性。主要用于外排时将Map排序输出到disk中。<br>实现思路是：将原数组的值不断向数组左端紧凑移动，且将原先占用两个位置的kv转成(k,v)只占一个位置，然后对数组按key进行kv排序。排序方法是KCComparator,即按key的hashcode进行排序。然后创建一个Iterator,其hasNext和next都是对新的数组进行相应遍历操作。</p>
 <p>spark早期版本采用的是AppendOnlyMap来实现shuffle reduce阶段数据的聚合，当数据量不大时没什么问题，但当数据量很大时就会占用大量内存，最后可能OOM。所以从spark 0.9开始就引入了ExternalAppendOnlyMap来代替AppendOnlyMap。</p>
@@ -149,27 +122,15 @@
 <p>主要属性和参数：</p>
 <h3 id="currentMap"><a href="#currentMap" class="headerlink" title="currentMap"></a>currentMap</h3><p>SizeTrackingAppendOnlyMap,继承于AppendOnlyMap。是ExternalAppendOnlyMap的内存Map。</p>
 <h3 id="spilledMaps"><a href="#spilledMaps" class="headerlink" title="spilledMaps"></a>spilledMaps</h3><p>new ArrayBuffer[DiskMapIterator]， 每个DiskMapIterator都指向了相应的spill到disk上的文件数据。</p>
-<h3 id="maxMemoryThreshold"><a href="#maxMemoryThreshold" class="headerlink" title="maxMemoryThreshold"></a>maxMemoryThreshold</h3><p>该值决定了用于该worker上同时运行的任务的currentMap的大小之和，即num(running tasks) * size(各task的currentMap)。该值由spark.shuffle.memoryFraction和spark.shuffle.safetyFraction决定，具体计算方式如下：</p>
-<pre><code>val maxMemoryThreshold = {
-    val memoryFraction = sparkConf.getDouble(&quot;spark.shuffle.memoryFraction&quot;, 0.3)
-    val safetyFraction = sparkConf.getDouble(&quot;spark.shuffle.safetyFraction&quot;, 0.8)
-    (Runtime.getRuntime.maxMemory * memoryFraction * safetyFraction).toLong //即worker的内存*0.24
-}
-</code></pre><h3 id="insert"><a href="#insert" class="headerlink" title="insert"></a>insert</h3><p>插入kv对的主要方法。<br>shouldSpill是剩余空间是否足够让currentMap进行扩容,够的话进行大小翻倍，不够的话则将currentMap spill到disk中。<br>这里需要判断是否需要进行shouldSpill判断，具体判断逻辑如下：</p>
-<pre><code>numPairsInMemory &gt; trackMemoryThreshold &amp;&amp; currentMap.atGrowThreshold
-</code></pre><p>numPairsInMemory为已经添加的kv数，trackMemoryThreshold为固定值1000。也就是前1000个元素是可以直接往currentMap放而不会发生spill。<br>由于currentMap初始时可容纳kv的个数为64，则在numPairsInMemory &gt; trackMemoryThreshold前currentMap还是会发生几次grow。当numPairsInMemory &gt; trackMemoryThreshold时，则currentMap本次到达growThreshold时就要进行shouldSpill的判断。</p>
+<h3 id="maxMemoryThreshold"><a href="#maxMemoryThreshold" class="headerlink" title="maxMemoryThreshold"></a>maxMemoryThreshold</h3><p>该值决定了用于该worker上同时运行的任务的currentMap的大小之和，即num(running tasks) * size(各task的currentMap)。该值由spark.shuffle.memoryFraction和spark.shuffle.safetyFraction决定，具体计算方式如下：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> maxMemoryThreshold = &#123;</span><br><span class="line">    <span class="keyword">val</span> memoryFraction = sparkConf.getDouble(<span class="string">"spark.shuffle.memoryFraction"</span>, <span class="number">0.3</span>)</span><br><span class="line">    <span class="keyword">val</span> safetyFraction = sparkConf.getDouble(<span class="string">"spark.shuffle.safetyFraction"</span>, <span class="number">0.8</span>)</span><br><span class="line">    (<span class="type">Runtime</span>.getRuntime.maxMemory * memoryFraction * safetyFraction).toLong <span class="comment">//即worker的内存*0.24</span></span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="insert"><a href="#insert" class="headerlink" title="insert"></a>insert</h3><p>插入kv对的主要方法。<br>shouldSpill是剩余空间是否足够让currentMap进行扩容,够的话进行大小翻倍，不够的话则将currentMap spill到disk中。<br>这里需要判断是否需要进行shouldSpill判断，具体判断逻辑如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">numPairsInMemory &gt; trackMemoryThreshold &amp;&amp; currentMap.atGrowThreshold</span><br></pre></td></tr></table></figure></p>
+<p>numPairsInMemory为已经添加的kv数，trackMemoryThreshold为固定值1000。也就是前1000个元素是可以直接往currentMap放而不会发生spill。<br>由于currentMap初始时可容纳kv的个数为64，则在numPairsInMemory &gt; trackMemoryThreshold前currentMap还是会发生几次grow。当numPairsInMemory &gt; trackMemoryThreshold时，则currentMap本次到达growThreshold时就要进行shouldSpill的判断。</p>
 <ul>
 <li>当这个结果是false时，则未达到需要进行shouldSpill判断的条件，则直接currentMap.changeValue(key, update)将kv更新到currentMap中。</li>
 <li>当这个结果是true时，则需要进行shouldSpill到disk判断。</li>
 </ul>
-<p>shouldSpill判断的具体步骤为：根据maxMemoryThreshold以及目前正在运行的其他task的currentMap大小 来判断是否有足够内存来让currentMap的大小翻倍。</p>
-<pre><code>val threadId = Thread.currentThread().getId
-val previouslyOccupiedMemory = shuffleMemoryMap.get(threadId)
-val availableMemory = maxMemoryThreshold -
-    (shuffleMemoryMap.values.sum - previouslyOccupiedMemory.getOrElse(0L))
-// Assume map growth factor is 2x
-shouldSpill = availableMemory &lt; mapSize * 2
-</code></pre><ul>
+<p>shouldSpill判断的具体步骤为：根据maxMemoryThreshold以及目前正在运行的其他task的currentMap大小 来判断是否有足够内存来让currentMap的大小翻倍。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> threadId = <span class="type">Thread</span>.currentThread().getId</span><br><span class="line">   <span class="keyword">val</span> previouslyOccupiedMemory = shuffleMemoryMap.get(threadId)</span><br><span class="line">   <span class="keyword">val</span> availableMemory = maxMemoryThreshold -</span><br><span class="line">       (shuffleMemoryMap.values.sum - previouslyOccupiedMemory.getOrElse(<span class="number">0</span>L))</span><br><span class="line">   <span class="comment">// Assume map growth factor is 2x</span></span><br><span class="line">   shouldSpill = availableMemory &lt; mapSize * <span class="number">2</span></span><br></pre></td></tr></table></figure></p>
+<ul>
 <li>shouldSpill=false：让 shuffleMemoryMap(threadId) = mapSize * 2, 即让当前任何占用2倍的空间。 currentMap的扩容会发生之后的currentMap.changeValue里。</li>
 <li>shouldSpill=true: 进行spill操作。</li>
 </ul>
@@ -185,52 +146,10 @@ shouldSpill = availableMemory &lt; mapSize * 2
 <li>当spillMaps不空时，则要进行外排过程ExternalIterator(<em>和Hadoop的reduce的sort阶段以及hbase的memStore、storeFile遍历类似</em>)</li>
 </ul>
 <h3 id="ExternalIterator"><a href="#ExternalIterator" class="headerlink" title="ExternalIterator"></a>ExternalIterator</h3><p>外排的主要思想：各个Iterator已经按key.hashcode排好序，利用一个优先队列保存各个Iterator, hasNext是看优先队列是否有元素，next则是返回当前最小hashcode的最小key对应的所有value合并成的combine,即(minKey,minCombiner)。<br>具体实现如下：<br>1、各个Iterator: 由currentMap.destructiveSortedIterator形成的Iterator以及spillMaps中的DiskMapIterator<br>2、优先队列为mergeHeap = new mutable.PriorityQueue[StreamBuffer]，StreamBuffer的主要方法如下：</p>
-<pre><code>private case class StreamBuffer(iterator: Iterator[(K, C)], pairs: ArrayBuffer[(K, C)])
-  extends Comparable[StreamBuffer] {
-
-  def isEmpty = pairs.length == 0
-
-  // Invalid if there are no more pairs in this stream
-  def minKeyHash = {
-    assert(pairs.length &gt; 0)
-    pairs.head._1.hashCode()
-  }
-
-  override def compareTo(other: StreamBuffer): Int = {
-    // descending order because mutable.PriorityQueue dequeues the max, not the min
-    if (other.minKeyHash &lt; minKeyHash) -1 else if (other.minKeyHash == minKeyHash) 0 else 1
-  }
- }
-}
-</code></pre><p>StreamBuffer存的是某个Iterator,以及该Iterator按某个key.hashCode聚合的结果。其compareTo决定了其在mergeHeap的位置。StreamBuffer的key.hashCode都是一样的，这样minKeyHash可以从其存储的数据集中随便取一个就行。这里会让hashCode相同的两个key同时存到这个StreamBuffer中，也就是key不相同，这里会有问题吗，后面的讲到的mergeIfKeyExists会进行key是否相同的判断。<br>3、将各个Iterator转成StreamBuffer, 这个过程需要获得各个Iterator最小的keyHash对应的所有kv对，具体实现是getMorePairs方法。</p>
-<pre><code>private def getMorePairs(it: Iterator[(K, C)]): ArrayBuffer[(K, C)] = {
-  val kcPairs = new ArrayBuffer[(K, C)]
-  if (it.hasNext) {
-    var kc = it.next()
-    kcPairs += kc
-    val minHash = kc._1.hashCode()
-    while (it.hasNext &amp;&amp; kc._1.hashCode() == minHash) {
-      kc = it.next()
-      kcPairs += kc
-    }
-  }
-  kcPairs
-}
-</code></pre><p>该方法十分简单，就是获得第一个key.hashCode即最小的minHash(因为Iterator已经按key.hashCode排好序)，然后获得和minHash相同的所有kv对。<br>4、hasNext：mergeHeap优先队列是否为空<br>5、next: 外排的核心逻辑。<br>   a、mergeHeap.dequeue()将队列顶最小的StreamBuffer出队列并加到mergedBuffers(<em>mergedBuffers为了记录出队的StreamBuffer,便于下一轮继续加入</em>)中，得到minHash,以及(minKey, minCombiner)。<br>   b、然后要去剩下的StreamBuffer上获得和minHash相同的kv对，并与(minKey, minCombiner)进行合并。从队列顶不断dequeue与minHash相同的StreamBuffer并加到mergedBuffers中,每取到一个StreamBuffer则进行value合并，合并具体调用mergeIfKeyExists。</p>
-<pre><code>private def mergeIfKeyExists(key: K, baseCombiner: C, buffer: StreamBuffer): C = {
-  var i = 0
-  while (i &lt; buffer.pairs.length) {
-    val (k, c) = buffer.pairs(i)
-    if (k == key) {
-      buffer.pairs.remove(i)
-      //baseCombiner即b中的minCombiner。这里mergeCombiners的原因是在currentMap中的updateFunc时生成的是Combiner
-      return mergeCombiners(baseCombiner, c)
-    }
-    i += 1
-  }
-  baseCombiner
-}
-</code></pre><p>   这里只有与minKey相同的kv才会被选取与minCombiner进行合并且从对应的StreamBuffer中移除，否则仍保留。<br>   c、遍历mergedBuffers即dequeue的各StreamBuffer判断其是否还有kv对，没有的话则重新调用getMorePairs获得下一波kv对。 然后将StreamBuffer再次enqueue到mergeHeap中进行重新排序。当然如果某个StreamBuffer还是没kv对，则说明对应的Iterator已经遍历完，不需要再加到mergeHeap中。<br>   d、返回(minKey,minCombiner)</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">StreamBuffer</span>(<span class="params">iterator: <span class="type">Iterator</span>[(<span class="type">K</span>, <span class="type">C</span></span>)], <span class="title">pairs</span></span>: <span class="type">ArrayBuffer</span>[(<span class="type">K</span>, <span class="type">C</span>)])</span><br><span class="line">     <span class="keyword">extends</span> <span class="type">Comparable</span>[<span class="type">StreamBuffer</span>] &#123;</span><br><span class="line"></span><br><span class="line">     <span class="function"><span class="keyword">def</span> <span class="title">isEmpty</span> </span>= pairs.length == <span class="number">0</span></span><br><span class="line"></span><br><span class="line">     <span class="comment">// Invalid if there are no more pairs in this stream</span></span><br><span class="line">     <span class="function"><span class="keyword">def</span> <span class="title">minKeyHash</span> </span>= &#123;</span><br><span class="line">       assert(pairs.length &gt; <span class="number">0</span>)</span><br><span class="line">       pairs.head._1.hashCode()</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">compareTo</span></span>(other: <span class="type">StreamBuffer</span>): <span class="type">Int</span> = &#123;</span><br><span class="line">       <span class="comment">// descending order because mutable.PriorityQueue dequeues the max, not the min</span></span><br><span class="line">       <span class="keyword">if</span> (other.minKeyHash &lt; minKeyHash) <span class="number">-1</span> <span class="keyword">else</span> <span class="keyword">if</span> (other.minKeyHash == minKeyHash) <span class="number">0</span> <span class="keyword">else</span> <span class="number">1</span></span><br><span class="line">     &#125;</span><br><span class="line">    &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<p>StreamBuffer存的是某个Iterator,以及该Iterator按某个key.hashCode聚合的结果。其compareTo决定了其在mergeHeap的位置。StreamBuffer的key.hashCode都是一样的，这样minKeyHash可以从其存储的数据集中随便取一个就行。这里会让hashCode相同的两个key同时存到这个StreamBuffer中，也就是key不相同，这里会有问题吗，后面的讲到的mergeIfKeyExists会进行key是否相同的判断。<br>3、将各个Iterator转成StreamBuffer, 这个过程需要获得各个Iterator最小的keyHash对应的所有kv对，具体实现是getMorePairs方法。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">getMorePairs</span></span>(it: <span class="type">Iterator</span>[(<span class="type">K</span>, <span class="type">C</span>)]): <span class="type">ArrayBuffer</span>[(<span class="type">K</span>, <span class="type">C</span>)] = &#123;</span><br><span class="line">     <span class="keyword">val</span> kcPairs = <span class="keyword">new</span> <span class="type">ArrayBuffer</span>[(<span class="type">K</span>, <span class="type">C</span>)]</span><br><span class="line">     <span class="keyword">if</span> (it.hasNext) &#123;</span><br><span class="line">       <span class="keyword">var</span> kc = it.next()</span><br><span class="line">       kcPairs += kc</span><br><span class="line">       <span class="keyword">val</span> minHash = kc._1.hashCode()</span><br><span class="line">       <span class="keyword">while</span> (it.hasNext &amp;&amp; kc._1.hashCode() == minHash) &#123;</span><br><span class="line">         kc = it.next()</span><br><span class="line">         kcPairs += kc</span><br><span class="line">       &#125;</span><br><span class="line">     &#125;</span><br><span class="line">     kcPairs</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>该方法十分简单，就是获得第一个key.hashCode即最小的minHash(因为Iterator已经按key.hashCode排好序)，然后获得和minHash相同的所有kv对。<br>4、hasNext：mergeHeap优先队列是否为空<br>5、next: 外排的核心逻辑。<br>   a、mergeHeap.dequeue()将队列顶最小的StreamBuffer出队列并加到mergedBuffers(<em>mergedBuffers为了记录出队的StreamBuffer,便于下一轮继续加入</em>)中，得到minHash,以及(minKey, minCombiner)。<br>   b、然后要去剩下的StreamBuffer上获得和minHash相同的kv对，并与(minKey, minCombiner)进行合并。从队列顶不断dequeue与minHash相同的StreamBuffer并加到mergedBuffers中,每取到一个StreamBuffer则进行value合并，合并具体调用mergeIfKeyExists。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">mergeIfKeyExists</span></span>(key: <span class="type">K</span>, baseCombiner: <span class="type">C</span>, buffer: <span class="type">StreamBuffer</span>): <span class="type">C</span> = &#123;</span><br><span class="line">  <span class="keyword">var</span> i = <span class="number">0</span></span><br><span class="line">  <span class="keyword">while</span> (i &lt; buffer.pairs.length) &#123;</span><br><span class="line">    <span class="keyword">val</span> (k, c) = buffer.pairs(i)</span><br><span class="line">    <span class="keyword">if</span> (k == key) &#123;</span><br><span class="line">      buffer.pairs.remove(i)</span><br><span class="line">      <span class="comment">//baseCombiner即b中的minCombiner。这里mergeCombiners的原因是在currentMap中的updateFunc时生成的是Combiner</span></span><br><span class="line">      <span class="keyword">return</span> mergeCombiners(baseCombiner, c)</span><br><span class="line">    &#125;</span><br><span class="line">    i += <span class="number">1</span></span><br><span class="line">  &#125;</span><br><span class="line">  baseCombiner</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>   这里只有与minKey相同的kv才会被选取与minCombiner进行合并且从对应的StreamBuffer中移除，否则仍保留。<br>   c、遍历mergedBuffers即dequeue的各StreamBuffer判断其是否还有kv对，没有的话则重新调用getMorePairs获得下一波kv对。 然后将StreamBuffer再次enqueue到mergeHeap中进行重新排序。当然如果某个StreamBuffer还是没kv对，则说明对应的Iterator已经遍历完，不需要再加到mergeHeap中。<br>   d、返回(minKey,minCombiner)</p>
 <h3 id="DiskMapIterator"><a href="#DiskMapIterator" class="headerlink" title="DiskMapIterator"></a>DiskMapIterator</h3><p>从disk文件读取数据形成Iterator。<br>hasNext:是否读到文件末尾<br>next: 先调用nextBatchStream()将batchSizes.remove(0)即当前要读的数据量的数据读到bufferedStream中，然后每次next都从该缓存中获得kv对，当缓存中数据取完时又调用nextBatchStream()重新从文件批量读取下块数据。</p>
   
 	</div>
@@ -383,14 +302,6 @@ shouldSpill = availableMemory &lt; mapSize * 2
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -399,15 +310,23 @@ shouldSpill = availableMemory &lt; mapSize * 2
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -419,6 +338,14 @@ shouldSpill = availableMemory &lt; mapSize * 2
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -427,19 +354,11 @@ shouldSpill = availableMemory &lt; mapSize * 2
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -452,7 +371,7 @@ shouldSpill = availableMemory &lt; mapSize * 2
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 

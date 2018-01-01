@@ -171,8 +171,7 @@ stage的名称来自两个地方：callSite (callSite = getCallSite = Utils.getC
     
      
            <p itemprop="description" >checkpoint会将结果写到hdfs上，当driver 关闭后数据不会被清除。所以可以在其他driver上重复利用该checkpoint的数据。
-checkpoint write data:
-sc.setCheckpointDir(&amp;quot;data/checkpoint&amp;</p>
+checkpoint write data:1234sc.setCheckpointDir(&#34;data/checkpoint&#34;)v</p>
         
     
     <time datetime="2014-09-01T07:18:58.000Z" itemprop="datePublished">2014-09-01</time>
@@ -192,9 +191,7 @@ sc.setCheckpointDir(&amp;quot;data/checkpoint&amp;</p>
     <h1 itemprop="name">spark查看分区元素数工具</h1>
     
      
-           <p itemprop="description" >spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法：
-object RDDUtils {
-  def getPart</p>
+           <p itemprop="description" >spark中也有可能出现数据倾斜问题(如join等，当key有大部分相同时(如像hive数据倾斜那样join的字段很多为null))，所以需要查看各分区的元素数目来判断数据各分区分布情况，以下是查看分区元素数的方法：12345678910111213object RDDUtils</p>
         
     
     <time datetime="2014-08-29T03:03:21.000Z" itemprop="datePublished">2014-08-29</time>
@@ -235,8 +232,7 @@ AppendOnlyMapAppendOnlyMap是spark自己实现的Map，只能添加数据，不�
     <h1 itemprop="name">spark RDD keyvalue操作</h1>
     
      
-           <p itemprop="description" >主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换
-implicit def rddToPairRDDFunctions[K: Class</p>
+           <p itemprop="description" >主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换1implicit def rddToPairRDDFunctions[K: Class</p>
         
     
     <time datetime="2014-07-22T12:10:42.000Z" itemprop="datePublished">2014-07-22</time>
@@ -362,14 +358,6 @@ master: 资源管理，分配driver到哪个Worker，分配Executor等。standal
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
@@ -378,15 +366,23 @@ master: 资源管理，分配driver到哪个Worker，分配Executor等。standal
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/mapreduce/" title="mapreduce">mapreduce<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -398,6 +394,14 @@ master: 资源管理，分配driver到哪个Worker，分配Executor等。standal
 			
 		
 			
+				<li><a href="/tags/debug/" title="debug">debug<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/reduce/" title="reduce">reduce<sup>1</sup></a></li>
 			
 		
@@ -406,19 +410,11 @@ master: 资源管理，分配driver到哪个Worker，分配Executor等。standal
 			
 		
 			
-				<li><a href="/tags/hadoop/" title="hadoop">hadoop<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -431,7 +427,7 @@ master: 资源管理，分配driver到哪个Worker，分配Executor等。standal
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
+    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
 </div>
 
 
