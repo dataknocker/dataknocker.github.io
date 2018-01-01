@@ -14,10 +14,11 @@ spark-class中设置了各jvm的参数，所以可以在这些参数中加入deb
 ### spark-class的修改
 修改spark/bin/spark-class文件：
 都是在OUR_JAVA_OPTS中加入了
-
+```bash
 	-Xdebug -Xrunjdwp:transport=dt_socket,address=8002,server=y,suspend=n
+```
 具体见:
-
+```bash
 	'org.apache.spark.deploy.master.Master')
 	  	OUR_JAVA_OPTS="$SPARK_DAEMON_JAVA_OPTS $SPARK_MASTER_OPTS -Xdebug -Xrunjdwp:transport=dt_socket,address=8002,server=y,suspend=n"
 	  	OUR_JAVA_MEM=${SPARK_DAEMON_MEMORY:-$DEFAULT_MEM}
@@ -29,28 +30,28 @@ spark-class中设置了各jvm的参数，所以可以在这些参数中加入deb
 	'org.apache.spark.deploy.SparkSubmit')
 		OUR_JAVA_OPTS="$SPARK_JAVA_OPTS $SPARK_SUBMIT_OPTS -Xdebug -Xrunjdwp:transport=dt_socket,address=8004,server=y,suspend=n"
 		OUR_JAVA_MEM=${SPARK_DRIVER_MEMORY:-$DEFAULT_MEM}
-
+```
 这样也可以对HistoryServer等进行这样的debug。
 
 ### Executor debug配置
 直接在sparkConf中进行设置：
-
+```scala
 	sparkConf.setAppName("sparktest").set("spark.executor.extraJavaOptions", "-Xdebug -Xrunjdwp:transport=dt_socket,address=8005,server=y,suspend=n")
-
+```
 ### 启动standalone
 本机既作为master又作为worker，这样所有操作其实都是在本机上操作的，(当然有耐心的话，可以搞搞多台机器上的)。
 1、启动master:在spark/sbin下启动
-
+```bash
 	$SPARK_HOME/sbin/start-master.sh
-
+```
 2、启动worker:
-
+```bash
 	$SPARK_HOME/bin/spark-class org.apache.spark.deploy.worker.Worker spark://localhost:7077
-
+```
 查看Master和Worker进程，可以看到remote debug已经打开
-
+```bash
 	/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home/bin/java -cp ::/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/conf:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/spark-assembly-1.1.0-hadoop2.3.0.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-api-jdo-3.2.1.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-core-3.2.2.jar:/Users/wangzejie/software/spark/spark-1.1.0-bin-hadoop2.3/lib/datanucleus-rdbms-3.2.1.jar -XX:MaxPermSize=128m -Dspark.akka.logLifecycleEvents=true -Xdebug -Xrunjdwp:transport=dt_socket,address=8003,server=y,suspend=n -Xms512m -Xmx512m org.apache.spark.deploy.worker.Worker spark://localhost:7077
-
+```
 ### idea上监听master和worker
 spark 1.1源码已经导入idea工程中，在idea的Run/Debug config进行debug端口的设置。具体见下面的图。
 ![Edit Configurations](../../../../img/spark/debug/editconfig.png)
@@ -67,7 +68,7 @@ Master、Worker、Driver、Executor都是这样的设置方法。
 选择相应debug,然后点debug按钮。
 
 ### 监听driver
-
+```scala
 	object Main {
 	  def main(args: Array[String]) {
 	    val sparkConf = new SparkConf()
@@ -82,6 +83,7 @@ Master、Worker、Driver、Executor都是这样的设置方法。
 	    println(count)
 	  }
 	}
+```
 运行到driver的main方法时，我在代码中加入了sleep 10s，便于有足够时间启动driver的remote debug。
 这样就可以debug我们的应用程序了。
 

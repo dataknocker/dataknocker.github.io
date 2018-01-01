@@ -19,13 +19,13 @@ solr空间索引主要有两类GeohashPrefixTree(Geohash)与QuadPrefixTree(四�
 由于两种方法的大致思想一致，所以下文重点介绍geohash。
 ## 重要属性
 schema.xml中的空间索引类型的配置：
-
+```xml
 	<fieldType name="location_jts"   class="solr.SpatialRecursivePrefixTreeFieldType"
 	           spatialContextFactory="com.spatial4j.core.context.jts.JtsSpatialContextFactory"
 	           distErrPct="0.025"
 	           maxDistErr="0.000009"
 	           units="degrees"/>
-
+```
 
 - SpatialRecursivePrefixTreeFieldType
 
@@ -34,7 +34,7 @@ schema.xml中的空间索引类型的配置：
 当有Polygon多边形时会使用jts(需要把jts.jar放到solr服务的lib下)。基本形状使用SpatialContext (spatial4j的类)。
 - distErrPct
 定义非Point图形的精度，范围在0-0.5之间，默认0.025。该值决定了非Point的图形索引或查询时的level(如geohash模式时就是geohash的长度)。当为0时取maxLevels，即精度最大。计算level的方法是 Shape中心到其外包矩形的最远corner的距离 * distErrPct (这块理论依据还没研究...)。实现代码如下SpatialArgs.calcDistanceFromErrPct()返回distErr：
-
+```java
 	public static double calcDistanceFromErrPct(Shape shape, double distErrPct, SpatialContext ctx) {
 	    if (distErrPct < 0 || distErrPct > 0.5) {
 	      throw new IllegalArgumentException("distErrPct " + distErrPct + " must be between [0 to 0.5]");
@@ -51,15 +51,16 @@ schema.xml中的空间索引类型的配置：
 	    double diagonalDist = ctx.getDistCalc().distance(ctr, bbox.getMaxX(), y);
 	    return diagonalDist * distErrPct;
 	  }
-
+```
 然后由GeohashPrefixTree.getLevelForDistantce(distErr)来求得geohash精度。
-
+```java
 	public int getLevelForDistance(double dist) {
 	    if (dist == 0) //Point时dist=0
 	      return maxLevels;//short circuit
 	    final int level = GeohashUtils.lookupHashLenForWidthHeight(dist, dist);
 	    return Math.max(Math.min(level, maxLevels), 1);
 	  }
+```
 - maxDistErr/maxLevels
 
 定义索引数据的最高层maxLevels，默认是0.000009即1米(geohash11位)，直接决定了Point索引的term数。
@@ -114,12 +115,12 @@ note: d=5的未画出的其他分支...
 ## 空间索引查询
 
 ### 查询语法
-
+```bash
 	q={!geofilt pt=45.15,-93.85 sfield=geo d=5 score=distance}
 	q={!bbox pt=45.15,-93.85 sfield=geo d=5 score=distance}
 	q=geo:"Intersects(-74.093 41.042 -69.347 44.558)"
 	q=geo:"Intersects(POLYGON((-10 30, -40 40, -10 -20, 40 20, 0 0, -10 30)))"
-
+```
 ### 查询方法
 我们可以像创建空间索引的方法那样得到与查询Shape相交的所有子Cell，然后再与term进行匹配，但这有两个问题：一是很多没有数据的区域也会被深度遍历，二是得到的子Cell与term进行匹配比较麻烦(比如一个精度很大的多边形查询，其获得了很多前缀，不知道该拿哪些前缀去匹配相应的term从而获得docId)。
 solr的查询策略：利用了索引term的字典有序可以有效地对上面的深度遍历进行剪枝，term的顺序和深度遍历的Cell的顺序是一致的。具体流程如下图：

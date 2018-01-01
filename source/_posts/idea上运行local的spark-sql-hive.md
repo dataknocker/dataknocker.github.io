@@ -11,7 +11,7 @@ tags: [spark sql, hive]
 服务器test01作为remote端,test02作为client端, test02也需要有hadooop环境(和test01一样)
 1、下载hive 0.13并解压
 2、test01上配置hive-site.xml,加入mysql相关 (包括将mysql connect包放到lib中)
-
+```xml
 	<?xml version="1.0"?>  
 	<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>  
 	   
@@ -41,11 +41,11 @@ tags: [spark sql, hive]
 	  <name>javax.jdo.option.ConnectionPassword</name>  
 	  <value>password</value>  
 	</property>
-
+```
 3、启动test01上的metastore server: nohup hive - -service metastore> metastore.log 2>&1 &
    默认端口为9083 
 4、配置test02上的hive-site.xml
-
+```xml
 	<?xml version="1.0"?>
 	<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 	<configuration>
@@ -64,14 +64,14 @@ tags: [spark sql, hive]
 	        <value>thrift://test01:9083</value>
 	    </property>
 	</configuration>
-
+```
 这样test02上通过hive就可以访问test01上的了
 
 
 ## idea上运行local的spark sql
 前提：本机上的hive client可以使用, 同时我这里用了hadoop2.2版本
 我使用的是maven 工程, pom.xml如下：
-
+```xml
 	<dependencies>
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -150,13 +150,13 @@ tags: [spark sql, hive]
             </plugin>
         </plugins>
     </build>
-
+```
 
 
 将hive client的hive-site.xml放到resources目录下，这样就可以访问远程的hive metadata了。
 
 Test程序：
-
+```scala
 	object Test{
 	  def main(args:Array[String]): Unit = {
 	    val sc = new SparkContext("local", "test")
@@ -165,10 +165,11 @@ Test程序：
 	    rdd.collect().foreach(println)
 	  }
 	}
-
+```
 运行时有可能报：
-
+```scala
 	Exception in thread "main" org.apache.hadoop.ipc.RemoteException: Server IPC version 9 cannot communicate with client version 4
+```
 这是因为org.apache.spark默认使用的是hadoop-client-1.0.4, 而我的hadoop是2.2.0, 所以版本不一致，解决方法是将hadoop-client-1.0.4改成hadoop-2.2.0， 解决方法已经在上面的pom.xml中加入了。
 
    

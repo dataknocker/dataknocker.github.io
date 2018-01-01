@@ -6,9 +6,9 @@ tags: [spark,RDD,shuffle,keyvalue]
 
 主要在PairRDDFunctions内实现，通过隐式转换使kv形式的RDD具有这个类中的方法。
 隐式转换代码如下，在SparkContext中进行，一定要是RDD[(K,V)]型的才可以被转换
-
+```scala
 	implicit def rddToPairRDDFunctions[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)]) = new PairRDDFunctions(rdd)
-
+```
 *note:写spark程序时使用PairRDDFunctions中的方法时会报错，需要import SparkContext._ ，使object SparkContext中的所有方法都能被引入进来。*
 
 ## 涉及shuffle的操作
@@ -25,7 +25,7 @@ shffule过程这里只是简单画了下，以后再写其他文章来深入讲�
 
 ###combineByKey
 先上代码：
-
+```scala
 	def combineByKey[C](createCombiner: V => C,
 	      mergeValue: (C, V) => C,
 	      mergeCombiners: (C, C) => C,
@@ -65,6 +65,7 @@ shffule过程这里只是简单画了下，以后再写其他文章来深入讲�
 	      }, preservesPartitioning = true)
 	    }
 	  }
+```
 ![combineByKey的操作流程](../../../../img/spark/combinekey.svg)
 主要参数介绍：
 createCombiner、mergeValue、mergeCombiners在Aggregator中使用，其实是在AppendOnlyMap/ExternalAppendOnlyMap(详见[AppendOnlyMap/ExternalAppendOnlyMap](http://dataknocker.github.io/2014/07/23/spark-appendonlymap/))中使用。
@@ -88,8 +89,8 @@ combineByKey形成的stage的描述会是调用combineByKey所在的行，其实
 以下是使用combineByKey的RDD
 #### reduceByKey
 对RDD按key聚合并进行func运算作为新value。
-
-    def reduceByKey(partitioner: Partitioner, func: (V, V) => V): RDD[(K, V)] = {
+```scala
+	def reduceByKey(partitioner: Partitioner, func: (V, V) => V): RDD[(K, V)] = {
     	combineByKey[V]((v: V) => v, func, func, partitioner)
     }
 
@@ -97,16 +98,16 @@ combineByKey形成的stage的描述会是调用combineByKey所在的行，其实
     	reduceByKey(new HashPartitioner(numPartitions), func)
     }
 
-    def reduceByKey(func: (V, V) => V): RDD[(K, V)] = {
+	def reduceByKey(func: (V, V) => V): RDD[(K, V)] = {
     	reduceByKey(defaultPartitioner(self), func)
     }
-
+```
 numPartitions是shuffle的reduce端的RDD的分区数。不使用该值则调用defaultPartitioner(),该方法是未设置spark.default.parallelism时默认为ShuffleRDD依赖的父RDD中最大的分区。
 流程：在各分区上通过func对数据进行按key聚合；进行shuffle，将key分配到相应的新分区上。在生成的新分区中再调用func进行按key聚合。
 
 #### groupByKey
 对RDD按key聚合，新value是聚合的value list
-
+```scala
 	def groupByKey(partitioner: Partitioner): RDD[(K, Iterable[V])] = {
 	    // groupByKey shouldn't use map side combine because map side combine does not
 	    // reduce the amount of data shuffled and requires all map side data be inserted
@@ -118,12 +119,13 @@ numPartitions是shuffle的reduce端的RDD的分区数。不使用该值则调用
 	      createCombiner _, mergeValue _, mergeCombiners _, partitioner, mapSideCombine=false)
 	    bufs.mapValues(_.toIterable)
     }
+```
 原理是当Key不存在时创建ArrayBuffer(v)，存在时将v加到该ArrayBuffer中，然后将各ArrayBuffer按key进行合并。
 *note:groupByKey中的mapSideCombine=false，因为其保留所有的值，所以不需要mapSideCombine*
 
 #### foldByKey
 该方法具体还不知道有什么实际应用场景...
-
+```scala
 	def foldByKey(zeroValue: V, partitioner: Partitioner)(func: (V, V) => V): RDD[(K, V)] = {
 	    // Serialize the zero value to a byte array so that we can get a new clone of it on each key
 	    val zeroBuffer = SparkEnv.get.closureSerializer.newInstance().serialize(zeroValue)
@@ -136,21 +138,23 @@ numPartitions是shuffle的reduce端的RDD的分区数。不使用该值则调用
 
 	    combineByKey[V]((v: V) => func(createZero(), v), func, func, partitioner)
     }
+```
 createZero()即copy一份和zeroValue一样的数据。其会在每个key第一次放到AppendOnlyMap中时调用。和fold一样，它要求func的两个参数是同类型的。
 
 关于zeroValue这里举个例子进行说明：
-
+```scala
 	val a = sc.parallelize(List("dog", "tiger", "cat", "lion", "panther", "eagle"), 2)
 	val b = a.map(x => (x.length, x))
 	b.foldByKey("X")(_ + _).collect
 	//结果是: Array[(Int, String)] = Array((4,Xlion), (3,XdogXcat), (7,Xpanther), (5,XtigerXeagle))
-
+```
 因为combineKey操作中：
 1、各分区进行aggregator.combineValuesByKey， 而createZero()即X会在key第一次加入到Map中被使用，即结果为分区1：(3,Xdogcat),(5:Xtiger)； 分区2:(4:Xlion),(7,Xpanther),(5,Xeagle)
 2、进行shuffle后分区1: (3,Xdogcat),(4,Xlion) 分区2:(5,Xtiger),(5,Xeagle),(7,Xpanther)。 真实分区可能不是这样，这里只是举例。
 3、各分区进行aggregator.combineCombinersByKey，将相同key的值进行合并，即结果为分区1：(3,Xdogcat),(4,Xlion), 分区2：(5,XtigerXeagle),(7,Xpanther)
 
 ###cogroup
+```scala
     //两个RDD进行cogroup
 	def cogroup[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (Iterable[V], Iterable[W]))]  = {
 	    if (partitioner.isInstanceOf[HashPartitioner] && keyClass.isArray) {
@@ -173,13 +177,14 @@ createZero()即copy一份和zeroValue一样的数据。其会在每个key第一�
 	       w2s.asInstanceOf[Seq[W2]])
 	    }
     }
+```
 ![cogroup的操作流程](../../../../img/spark/cogroup.svg)
 流程，以两个RDD进行cogroup为例：
 1、创建CoGroupedRDD，该RDD的dependency都是ShuffleDependency (当其两个父RDD的partitioner==Some(part)时是NarrowDependency, 这个以后再研究。大部分情况都是partitioner!=Some(part))。 于是会产生Shuffle过程：
    map端：两个父RDD都会将其分区数据写到相应的bucket中。
    reduce端：每个rdd都会通过SparkEnv.get.shuffleFetcher获得相应分区所负责的key的Iterator数据，通过AppendOnlyMap/ExternalAppendOnlyMap对从map阶段各分区得到的结果进行聚合形成新的Iterator。
 得到的结果是RDD[(K, Seq[Seq[_]])], 即对于每个Key, 都是Array[ArrayBuffer], 该二维数组存了各个RDD的聚合结果(即外层数组长度是rdd的个数)，里面的是具体某个RDD对应Key的value list。这里只看使用ExternalAppendOnlyMap的核心代码，AppendOnlyMap与之类似。
-
+```scala
     val createCombiner: (CoGroupValue => CoGroupCombiner) = value => {
       val newCombiner = Array.fill(numRdds)(new CoGroup)
       value match { case (v, depNum) => newCombiner(depNum) += v }
@@ -196,7 +201,7 @@ createZero()即copy一份和zeroValue一样的数据。其会在每个key第一�
       }
     new ExternalAppendOnlyMap[K, CoGroupValue, CoGroupCombiner](
       createCombiner, mergeValue, mergeCombiners)
-
+```
 createCombiner:当相应key不存在时，会创建一个二维数据，该二维数组存了各个RDD的聚合结果。
 mergeValue: 当相应key存在时进行value的merge。value的形式是(v,rddNum), 根据rddNum找到二维数组中相应RDD的结果数组，将新的v添加到该数组中
 mergeCombiners: 多个Iterator(一个mem Iterator与多个DiskMapIterator)在优先队列dequeue操作时将key相同的kvpairs的value进行合并。
@@ -206,26 +211,28 @@ mergeCombiners: 多个Iterator(一个mem Iterator与多个DiskMapIterator)在优
 以下是使用cogroup的RDD, 主要是各种Join操作
 #### join
 只会保留两个rdd共同key对应的记录
-
+```scala
 	def join[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (V, W))] = {
 	    this.cogroup(other, partitioner).flatMapValues { case (vs, ws) =>
 	      for (v <- vs; w <- ws) yield (v, w)
 	    }
     }
+```
 使用flatMapValues将cogroup生成的(k,(vs,ws))转成(k,(v,w))列表。
 flatMapValues会创建FlatMappedValuesRDD，其compute方法为：
-
+```scala
 	override def compute(split: Partition, context: TaskContext) = {
 	    firstParent[Product2[K, V]].iterator(split, context).flatMap { case Product2(k, v) =>
 	      f(v).map(x => (k, x))
 	    }
     }
+```
 这里的f即flatMapValues方法中声明的方法。(K,(Iterable[V], Iterable[W])) 会先被flatMap方法调用，其中的f会对(Iterable[V], Iterable[W])进行循环遍历生成(v,s)。然后flatMap再产生(k,(v,s))
 
 
 #### leftOuterJoin
 左rdd的所有key都被保留
-
+```scala
 	def leftOuterJoin[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (V, Option[W]))] = {
 	    this.cogroup(other, partitioner).flatMapValues { case (vs, ws) =>
 	      if (ws.isEmpty) {
@@ -235,11 +242,12 @@ flatMapValues会创建FlatMappedValuesRDD，其compute方法为：
 	      }
 	    }
     }
+```
 和join差不多，只是当ws(右rdd)是空时会输出(k,(v,None)),  ws不空时会输出(k,(v,Some(w)))。 第二个RDD的value是Optition类型，个人猜测是便于判断是否为空的处理。
 
 #### rightOuterJoin
 右rdd的所有key都被保留
-
+```scala
 	def rightOuterJoin[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (Option[V], W))] = {
 	    this.cogroup(other, partitioner).flatMapValues { case (vs, ws) =>
 	      if (vs.isEmpty) {
@@ -249,7 +257,7 @@ flatMapValues会创建FlatMappedValuesRDD，其compute方法为：
 	      }
 	    }
     }
-
+```
 和join差不多，只是当vs(左rdd)是空时会输出(k,(None,w)),  ws不空时会输出(k,(Some(v),w))。 
 
 *note:实际应用中经常会有不止2个rdd join的情况，可以用rdd1 join rdd2 join rdd3, 但这样会发生两次shuffle, 所以当3个rdd join可以使用cogroup(other1,other2)来实现自己的join方法，这样只需要一次shuffle，更多的话只能自己模仿cogroup来写了,毕竟CoGroupedRDD是支持Seq(rdd)的,工作量应该会少些。spark能写个通用的支持任意多个join的就好了...*
@@ -260,7 +268,7 @@ Alias for cogroup。 只是调用cogroup不做任何处理。
 ### subtractByKey
 rdd1.subtractByKey(rdd2), 去掉rdd1中与rdd2共有的key对应的kvpairs.
 主要使用SubtractedRDD， 其dependency也是两个ShuffleDependency, compute方法见下面代码：
-
+```scala
 	override def compute(p: Partition, context: TaskContext): Iterator[(K, V)] = {
 	    val partition = p.asInstanceOf[CoGroupPartition]
 	    val ser = Serializer.getSerializer(serializer)
@@ -290,7 +298,7 @@ rdd1.subtractByKey(rdd2), 去掉rdd1中与rdd2共有的key对应的kvpairs.
 	    integrate(partition.deps(1), t => map.remove(t._1))
 	    map.iterator.map { t =>  t._2.iterator.map { (t._1, _) } }.flatten
     }
-
+```
 shuffle的map阶段和cogroup一样，在reduce阶段有很大差异(其实可以用leftOuterJoin来实现该功能，只保留右rdd对应的值为None的记录，之所以没用时因为cogroup的reduce阶段会比subtractByKey的复杂很多以及多做一些不必要的工作，如要外排、右rdd的值也被保存等)。
 reduce阶段：
 1、创建一个HashMap
@@ -305,19 +313,20 @@ reduce阶段：
 ### mapValues
 mapValues(f)，key不变，只对value进行f操作。
 使用MappedValuesRDD。compute方法：
-
+```scala
 	firstParent[Product2[K, V]].iterator(split, context).map { case Product2(k ,v) => (k, f(v)) }
-
+```
 ### flatMapValues
 作用于(k,Iterator(v))的数据集合。
 flatMapValues(f)
 使用FlatMappedValuesRDD，其compute方法为：
-
+```scala
 	override def compute(split: Partition, context: TaskContext) = {
 	    firstParent[Product2[K, V]].iterator(split, context).flatMap { case Product2(k, v) =>
 	      f(v).map(x => (k, x))
 	    }
     }
+```
 原理是 对value=Iterator(v)进行操作后(如将该集合拆开)，然后对生成的每个v 添加key形成Iterator(k,v), 而flatMap则是遍历新生成的Iterator(k,v).iterator从而输出各个kv
 ### keys
 返回key数据集合 map(._1)
@@ -350,7 +359,7 @@ reduceByKeyLocally(func)不要和reduceByKey混淆,它是一个action。该方�
 
 ### lookup
 通过key获得其所有的value。
-
+```scala
 	def lookup(key: K): Seq[V] = {
 	    self.partitioner match {
 	      case Some(p) =>
@@ -368,6 +377,7 @@ reduceByKeyLocally(func)不要和reduceByKey混淆,它是一个action。该方�
 	        self.filter(_._1 == key).map(_._2).collect()
 	    }
     }
+```
 当该RDD有自己的partitioner时，即key已经按partitioner分好。则可以通过partitioner.getPartition(key)找到所在分区，从该分区中获得数据即可。
 否则通过filter获得k = key的记录，通过map获得value，然后collect()输出value.
 

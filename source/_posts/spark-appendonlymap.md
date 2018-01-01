@@ -22,7 +22,7 @@ growThreshold=LOAD_FACTOR * capacity,  当添加的元素超过该值时，数�
 
 ### changeValue
 spark中用的比较多的方法
-
+```scala
 	def changeValue(key: K, updateFunc: (Boolean, V) => V): V = {
 	    ...
 	    var pos = rehash(k.hashCode) & mask
@@ -50,7 +50,7 @@ spark中用的比较多的方法
 	    }
 	    ...
     }
-
+```
 该方法最核心的其实是外部传进来的updateFunc(hadValue, oldValue), updateFunc一般是当hadValue为false时createCombiner(v)作为新value， hadValue为true时mergeValue(oldValue,v),将v加到oldValue中。
 
 ### iterator
@@ -79,19 +79,20 @@ SizeTrackingAppendOnlyMap,继承于AppendOnlyMap。是ExternalAppendOnlyMap的�
 new ArrayBuffer[DiskMapIterator]， 每个DiskMapIterator都指向了相应的spill到disk上的文件数据。
 ### maxMemoryThreshold
 该值决定了用于该worker上同时运行的任务的currentMap的大小之和，即num(running tasks) * size(各task的currentMap)。该值由spark.shuffle.memoryFraction和spark.shuffle.safetyFraction决定，具体计算方式如下：
-
+```scala
 	val maxMemoryThreshold = {
 	    val memoryFraction = sparkConf.getDouble("spark.shuffle.memoryFraction", 0.3)
 	    val safetyFraction = sparkConf.getDouble("spark.shuffle.safetyFraction", 0.8)
 	    (Runtime.getRuntime.maxMemory * memoryFraction * safetyFraction).toLong //即worker的内存*0.24
     }
-
+```
 ### insert
 插入kv对的主要方法。
 shouldSpill是剩余空间是否足够让currentMap进行扩容,够的话进行大小翻倍，不够的话则将currentMap spill到disk中。
 这里需要判断是否需要进行shouldSpill判断，具体判断逻辑如下：
-
+```java
 	numPairsInMemory > trackMemoryThreshold && currentMap.atGrowThreshold
+```
 numPairsInMemory为已经添加的kv数，trackMemoryThreshold为固定值1000。也就是前1000个元素是可以直接往currentMap放而不会发生spill。
 由于currentMap初始时可容纳kv的个数为64，则在numPairsInMemory > trackMemoryThreshold前currentMap还是会发生几次grow。当numPairsInMemory > trackMemoryThreshold时，则currentMap本次到达growThreshold时就要进行shouldSpill的判断。
 
@@ -99,13 +100,14 @@ numPairsInMemory为已经添加的kv数，trackMemoryThreshold为固定值1000�
 - 当这个结果是true时，则需要进行shouldSpill到disk判断。
 
 shouldSpill判断的具体步骤为：根据maxMemoryThreshold以及目前正在运行的其他task的currentMap大小 来判断是否有足够内存来让currentMap的大小翻倍。
-
+```scala
 	val threadId = Thread.currentThread().getId
     val previouslyOccupiedMemory = shuffleMemoryMap.get(threadId)
     val availableMemory = maxMemoryThreshold -
         (shuffleMemoryMap.values.sum - previouslyOccupiedMemory.getOrElse(0L))
     // Assume map growth factor is 2x
     shouldSpill = availableMemory < mapSize * 2
+```
 - shouldSpill=false：让 shuffleMemoryMap(threadId) = mapSize * 2, 即让当前任何占用2倍的空间。 currentMap的扩容会发生之后的currentMap.changeValue里。
 - shouldSpill=true: 进行spill操作。
 
@@ -131,7 +133,7 @@ shouldSpill判断的具体步骤为：根据maxMemoryThreshold以及目前正在
 1、各个Iterator: 由currentMap.destructiveSortedIterator形成的Iterator以及spillMaps中的DiskMapIterator
 2、优先队列为mergeHeap = new mutable.PriorityQueue[StreamBuffer]，StreamBuffer的主要方法如下：
 	
-  
+```scala
 	private case class StreamBuffer(iterator: Iterator[(K, C)], pairs: ArrayBuffer[(K, C)])
       extends Comparable[StreamBuffer] {
 
@@ -149,9 +151,10 @@ shouldSpill判断的具体步骤为：根据maxMemoryThreshold以及目前正在
       }
      }
     }
+```
 StreamBuffer存的是某个Iterator,以及该Iterator按某个key.hashCode聚合的结果。其compareTo决定了其在mergeHeap的位置。StreamBuffer的key.hashCode都是一样的，这样minKeyHash可以从其存储的数据集中随便取一个就行。这里会让hashCode相同的两个key同时存到这个StreamBuffer中，也就是key不相同，这里会有问题吗，后面的讲到的mergeIfKeyExists会进行key是否相同的判断。
 3、将各个Iterator转成StreamBuffer, 这个过程需要获得各个Iterator最小的keyHash对应的所有kv对，具体实现是getMorePairs方法。
-
+```scala
 	private def getMorePairs(it: Iterator[(K, C)]): ArrayBuffer[(K, C)] = {
       val kcPairs = new ArrayBuffer[(K, C)]
       if (it.hasNext) {
@@ -165,12 +168,13 @@ StreamBuffer存的是某个Iterator,以及该Iterator按某个key.hashCode聚合
       }
       kcPairs
     }
+```
 该方法十分简单，就是获得第一个key.hashCode即最小的minHash(因为Iterator已经按key.hashCode排好序)，然后获得和minHash相同的所有kv对。
 4、hasNext：mergeHeap优先队列是否为空
 5、next: 外排的核心逻辑。
    a、mergeHeap.dequeue()将队列顶最小的StreamBuffer出队列并加到mergedBuffers(*mergedBuffers为了记录出队的StreamBuffer,便于下一轮继续加入*)中，得到minHash,以及(minKey, minCombiner)。
    b、然后要去剩下的StreamBuffer上获得和minHash相同的kv对，并与(minKey, minCombiner)进行合并。从队列顶不断dequeue与minHash相同的StreamBuffer并加到mergedBuffers中,每取到一个StreamBuffer则进行value合并，合并具体调用mergeIfKeyExists。
-
+```scala
     private def mergeIfKeyExists(key: K, baseCombiner: C, buffer: StreamBuffer): C = {
       var i = 0
       while (i < buffer.pairs.length) {
@@ -184,6 +188,7 @@ StreamBuffer存的是某个Iterator,以及该Iterator按某个key.hashCode聚合
       }
       baseCombiner
     }
+```
    这里只有与minKey相同的kv才会被选取与minCombiner进行合并且从对应的StreamBuffer中移除，否则仍保留。
    c、遍历mergedBuffers即dequeue的各StreamBuffer判断其是否还有kv对，没有的话则重新调用getMorePairs获得下一波kv对。 然后将StreamBuffer再次enqueue到mergeHeap中进行重新排序。当然如果某个StreamBuffer还是没kv对，则说明对应的Iterator已经遍历完，不需要再加到mergeHeap中。
    d、返回(minKey,minCombiner)

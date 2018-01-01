@@ -46,12 +46,12 @@ RDD:MappedRDD
 compute:调用Iterator.map()方法，hasNext方法为self.hasNext,next方法中执行f(元素)从而实现类型转换
 partitions:parent.partitions
 像map等pipline的主要是对父RDD的Iterator的hasNext和next进行加工，如
-
+```scala
 	def map[B](f: A => B): Iterator[B] = new AbstractIterator[B] {
 	    def hasNext = self.hasNext
 	    def next() = f(self.next())
     }
-
+```
 ### filter 
 过滤不满足f的元素
 RDD:FilteredRDD
@@ -79,12 +79,13 @@ compute: 调用Iterator.filter()，f为各partition的seed生成的随机数>fra
 ### intersection
 rdd1.subtract(rdd2): 获得rdd1和rdd2共有的值。
 先map(x=>(x,null))变成kv型然后使用cogroup(具体实现见[spark RDD keyvalue操作](http://dataknocker.github.io/2014/07/22/spark%20rdd%20keyvalue%E6%93%8D%E4%BD%9C/#reduceByKey)) 得到按key聚合的值对，然后过滤掉其中为空的记录并输出key。
-
+```scala
 	def intersection(other: RDD[T]): RDD[T] = {
 	    this.map(v => (v, null)).cogroup(other.map(v => (v, null)))
 	        .filter { case (_, (leftGroup, rightGroup)) => leftGroup.nonEmpty && rightGroup.nonEmpty }
 	        .keys
     }
+```
 这里感觉不应该使用cogroup。而应该要实现和SubtractedRDD类似的RDD，即将rdd1放到HashMap后，再遍历rdd2的kv，对Map中对应的key的value进行合并或者打一定的标志，等遍历完后再将有打标志的记录输出即可；或者再创建一个HashMap,遍历rdd2的kv时将Map中对应的key-value移到新HashMap中，最后新HashMap即是最后的结果。
 不过要是实现SubtractedRDD的话，就是要返回rdd1与rdd2有共同key的rdd1的kvpairs，感觉有些怪异。。。
 
@@ -138,15 +139,15 @@ action主要调用SparkContext.runJob方法。
 runJob的工作流程是在各worker上计算执行各Task,算完的结果会放到CompletionEvent对象中，在任务完成时会请求DAGSchedule的complete相关方法，最终由会调用JobWaiter的taskSucceeded(index: Int, result: Any)，该方法中会调用resultHandler(index, result.asInstanceOf[T])对结果进行聚合(该操作在driver上)。 taskSucceeded中会判断当任务全部完成时notifyAll，释放锁，从而driver可以进行对resultHandler产生的最终结果的进行操作
 
 runJob通用形式是
-
+```scala
 	def runJob[T, U: ClassTag](rdd: RDD[T], func: (TaskContext, Iterator[T]) => U, partitions: Seq[Int], allowLocal: Boolean, resultHandler: (Int, U) => Unit)
-
+```
 ![runJob流程示意](../../../../img/spark/runjob.svg)
 func是在各worker上执行各task时执行的方法,该方法主要是获得RDD的Iterator，然后通过hasNext/next来遍历Iterator中的各元素。
 resultHandler是在driver上执行(DAGScheduler的JobWatier在监听到Task完成时执行)。参数第一个参数是partitionId，第二个是该分区运行的结果。该方法一般是对各分区的结果进行汇总。每个Task完成时都会调用该方法将结果进行汇总。
 
 像reduce/fold/aggreate会使用通用的runJob,即设置自己的resultHandler，而其他如count等会使用默认的resultHandler,如
-
+```scala
 	  def runJob[T, U: ClassTag](
 	      rdd: RDD[T],
 	      func: (TaskContext, Iterator[T]) => U,
@@ -157,6 +158,7 @@ resultHandler是在driver上执行(DAGScheduler的JobWatier在监听到Task完�
 	    runJob[T, U](rdd, func, partitions, allowLocal, (index, res) => results(index) = res)
 	    results
 	  }
+```
 即采用系统自己实现的resultHandler： (index, res) => results(index) = res。  将各task的结果放到results中。然后再对results进行操作，如count就是results.sum
 
 ### foreach(f)
@@ -168,15 +170,16 @@ f操作的是整个分区，即在用户的f中自己调用Iterator遍历方法�
 ### collect、toArray
 调用Iterator.toArray将各分区变成Array形式，再Array.concat(results: _*) 来将各Array合并成一个Array
 使用了默认的resultHandler，将各task上算完的结果放到results中，并执行Array.concat(results: _*)
-
+```scala
 	def collect(): Array[T] = {
 	    val results = sc.runJob(this, (iter: Iterator[T]) => iter.toArray)
 	    Array.concat(results: _*)
     }
+```
 *note:该操作如果数据量很大时要尽量避免使用，或者要么是driver OOM或者akka传输的数据量大于其最大值而报错。*
 ### reduce
 将各元素从左到右按f进行合并
-
+```scala
 	def reduce(f: (T, T) => T): T = {
 	    val cleanF = sc.clean(f)
 	    val reducePartition: Iterator[T] => Option[T] = iter => {
@@ -199,6 +202,7 @@ f操作的是整个分区，即在用户的f中自己调用Iterator遍历方法�
 	    // Get the final result out of our Option, or throw an exception if the RDD was empty
 	    jobResult.getOrElse(throw new UnsupportedOperationException("empty collection"))
     }
+```
 参数：
 f(T,T)=>T： 将两个元素进行合并。 f的第一个参数是resultHandler(index,res)的res,即是以第一个完成的task的结果作为f执行的第一个点。
 reducePartition方法 (在SparkContext的runJob中是processPartition)用于在各worker上对其分配的Partition的数据进行计算reduceLeft从左到右计算。
@@ -209,7 +213,7 @@ mergeResult方法(在SparkContext的runJob中是resultHandler)。DAGSchedule的J
 zeroValue和下面的aggregate用法一样都是为了节省内存开销。
 
 ### aggregate 
-
+```scala
 	def aggregate[U: ClassTag](zeroValue: U)(seqOp: (U, T) => U, combOp: (U, U) => U): U = {
 	    // Clone the zero value since we will also be serializing it as part of tasks
 	    var jobResult = Utils.clone(zeroValue, sc.env.closureSerializer.newInstance())
@@ -220,31 +224,32 @@ zeroValue和下面的aggregate用法一样都是为了节省内存开销。
 	    sc.runJob(this, aggregatePartition, mergeResult)
 	    jobResult
     }
-
+```
 TraversableOnce中的aggregate中的foldLeft代码：
-
+```scala
 	def foldLeft[B](z: B)(op: (B, A) => B): B = {
 	    var result = z 
 	    this.seq foreach (x => result = op(result, x))
 	    result
     }
+```
 和fold差不多，也会调用会调用TraversableOnce的foldLeft(z)(op)。不同点是foldLeft的op是(B, A) => B，。而fold方法都是同类型,op是(A1,A1)=>A1。
 zeroValue的作用是在各task中，zeroValue将作为seqOp的第一个参数，然后将第二个参数不断合并到第一个参数，即合并到zeroValue中。也就是在同个task中使用的都是同一个U类型的zeroValue对象，对于zeroValue是集合对象的，可以节省内存开销。
 aggregate实例：
-
+```scala
 	val zeroCombiner = mutable.Map.empty[Int, (Int, DoubleMatrix)]
     val aggregated = data.aggregate(zeroCombiner)({ (combiner, point) => combiner += point.k -> point.v}, {XXX})  
     //zeroCombiner会作为seqOp的第一个参数，不断将point的相关属性合并到combiner即zeroCombiner中并返回combiner作为下一次seqOp操作的第一个参数。
-
+```
 zero的另一个例子：
-
+```scala
 	val z = sc.parallelize(List("a","b","c","d","e","f"),2)
 	z.aggregate("")(_ + _, _+_)
 	res115: String = abcdef
 
 	z.aggregate("x")(_ + _, _+_)
 	res116: String = xxdefxabc
-
+```
 
 ### count
 rdd的元素数。 各task计算各自分区的记录数，结果后会放到results中，然后调用results.sum求得总和
@@ -263,10 +268,11 @@ rdd的元素数。 各task计算各自分区的记录数，结果后会放到res
 先取第一个partition, 得到一个Iterator，然后res.foreach(buf ++= _.take(num - buf.size))，从第一个分区取出需要数目的元素存到buf中。如果数据不够，则
 - buf为空即第一个partition取出的数据为空，如filter完后某个partition为空。此时会查找剩下所有的partition。(该分支只在第一个partition分析完才发生)
 - buf不空，则这轮要查找的partition数为：
-
+```scala
 	numPartsToTry = (1.5 * num * partsScanned / buf.size).toInt 
 	//partsScanned是已经查询的分区数
 	//理想的情况是得到第一个分区的数目，然后 num / buf.size可以得到总共需要多少分区, 1.5倍是过高估计。  乘以partsScanned具体原因不明白，应该是第二轮如果还没取到，则再加强。
+```
 不断重复直到buf.size==num
 
 ### first
@@ -286,9 +292,9 @@ top(num: Int)(implicit ord: Ordering[T])
 和top一样：top(num)(ord.reverse)
 
 自定义Ordering可以使用Ordering.by或增加实现Ordering的类
-	
+```scala
 	rdd.takeOrdered(num)(Ordering.by(_._1))
-
+```
 ### keyBy(f)
 变成(f(x),x)对，即map(x => (f(x), x))
 

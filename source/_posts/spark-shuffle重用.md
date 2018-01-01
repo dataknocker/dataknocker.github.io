@@ -11,6 +11,7 @@ tags: [spark, shuffle]
 2、shuffleToMapStage保存了之前的shuffleId与相应的stage
 DAGScheduler:
 getMissingParentStages:
+```scala
 	getShuffleMapStage(shufDep, stage.jobId):
 
 	shuffleToMapStage.get(shuffleDep.shuffleId) match {
@@ -27,17 +28,17 @@ getMissingParentStages:
  
         stage
     }
-
+```
 3、某个shufflerdd完成后，第二次被调用时，shuffleDep.shuffleId就是和之前一样的，所以直接返回之前生成的stage.
 
 4、而在DAGScheduler的submitMissingTasks中
-
+```scala
 	val partitionsToCompute: Seq[Int] = {
       if (stage.isShuffleMap) {
         (0 until stage.numPartitions).filter(id => stage.outputLocs(id) == Nil)
       }
     }
-
+```
 partitionsToCompute是作为真正要跑的task来源，发现只有stage.outputLocs(id) == Nil才会被放到task列表中。
 
 可见由于stage是用之前的，其outputLocs在第一次shuffle完就有值了，所以这时就不会再对这些task进行计算了。
