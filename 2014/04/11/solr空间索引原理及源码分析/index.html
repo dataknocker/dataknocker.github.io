@@ -29,7 +29,7 @@
 <meta property="og:image" content="http://yoursite.com/img/solrspatial/solr创建索引流程.png">
 <meta property="og:image" content="http://yoursite.com/img/solrspatial/solr空间索引查询类图.png">
 <meta property="og:image" content="http://yoursite.com/img/solrspatial/lucene%20write的类图.png">
-<meta property="og:updated_time" content="2018-01-01T02:09:15.000Z">
+<meta property="og:updated_time" content="2018-01-04T10:05:52.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="solr空间索引原理及源码分析">
 <meta name="twitter:description" content="note:图片请右键 在新页签打开，可以放大看 solr的4.0-4.1版本使用GeohashField.createSpatialQuery(), 未使用IntersectsPrefixTreeFilter(继承于AbstractVisitingPrefixTreeFilter)。4.2版本开始使用IntersectsPrefixTreeFilter。4.2和4.3及以后的区别好像只是小改了一些">
@@ -169,10 +169,11 @@
 <ul>
 <li>先介绍不需要score的情况：<br>1、解析查询，生成Query树：获得相应的QParse, 对geofilt进行语法解析，获得geofilt的各个参数，并且获得相应的查询Query(ConstantScoreQuery)包括相应的Filter(IntersectsPrefixTreeFilter)，其中也计算了查询Shape的一些属性，如最大索引长度detailLevel。<br>2、查询：SolrIndexSearch.search()进行创建Weight树和Score树。利用IntersectsPrefixTreeFilter得到符合条件的docIdSet(调用了前面的VistorTemplate深度遍历策略)。由于不需要score，所以Score返回的是ConstantScorer。</li>
 <li>需要score的情况(大坑，要缓存所有term对应的docId及对应的geohash中心点)，只说明score=distance,score=recipDistance图中已经说明：<br>基本流程和上面一致。说明下主要不同的地方：</li>
-<li>Query对象：其创建的是FilteredQuery，其中有几个属性关系到打分：<pre><code>a、ShapeFieldCacheDistanceValueSource: 用于生成FuncitonValues对象来给各个doc打分，只用于计算Point类的doc，非Point类的doc都打180分(即非Point都是最近的)。其主要属性PointPrefixTreeFieldCacheProvider缓存了所有Point类doc的docId–&gt;point所在geohash的中心点(大坑之所在)。
-b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等主要用于空间索引的打分操作。
-</code></pre></li>
-<li>Scorer.score()调用的是AllScorer.score(): 解析出符合条件的docId，然后通过ShapeFieldCacheDistanceValueSource生成的FunctionValues得到docId对应的中心点，计算与查询Shape中心的距离来作为score。再放到优先队列中进行排序，从而实现按score排序的功能。</li>
+<li><p>Query对象：其创建的是FilteredQuery，其中有几个属性关系到打分：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a、ShapeFieldCacheDistanceValueSource: 用于生成FuncitonValues对象来给各个doc打分，只用于计算Point类的doc，非Point类的doc都打<span class="number">180</span>分(即非Point都是最近的)。其主要属性PointPrefixTreeFieldCacheProvider缓存了所有Point类doc的docId–&gt;point所在geohash的中心点(大坑之所在)。</span><br><span class="line">b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等主要用于空间索引的打分操作。</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Scorer.score()调用的是AllScorer.score(): 解析出符合条件的docId，然后通过ShapeFieldCacheDistanceValueSource生成的FunctionValues得到docId对应的中心点，计算与查询Shape中心的距离来作为score。再放到优先队列中进行排序，从而实现按score排序的功能。</p>
+</li>
 </ul>
 <h3 id="一些主要类说明："><a href="#一些主要类说明：" class="headerlink" title="一些主要类说明："></a>一些主要类说明：</h3><ul>
 <li>FunctionValues: 其floatVal(docId)用于计算两点距离(非Point默认最近)，调用provider的cache来获得各个docId的中心点坐标。</li>
@@ -326,19 +327,11 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 			
 		
 			
-				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
-			
-		
-			
 				<li><a href="/tags/idea/" title="idea">idea<sup>1</sup></a></li>
 			
 		
 			
 				<li><a href="/tags/standalone/" title="standalone">standalone<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
 			
 		
 			
@@ -350,7 +343,15 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 			
 		
 			
-				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
+				<li><a href="/tags/相似度计算/" title="相似度计算">相似度计算<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/spark-sql/" title="spark sql">spark sql<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
 			
 		
 			
@@ -358,11 +359,7 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 			
 		
 			
-				<li><a href="/tags/solr/" title="solr">solr<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/空间索引/" title="空间索引">空间索引<sup>1</sup></a></li>
+				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
 			
 		
 			
@@ -374,15 +371,19 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 			
 		
 			
+				<li><a href="/tags/solr/" title="solr">solr<sup>1</sup></a></li>
+			
+		
+			
+				<li><a href="/tags/空间索引/" title="空间索引">空间索引<sup>1</sup></a></li>
+			
+		
+			
 				<li><a href="/tags/stage/" title="stage">stage<sup>1</sup></a></li>
 			
 		
 			
-				<li><a href="/tags/keyvalue/" title="keyvalue">keyvalue<sup>1</sup></a></li>
-			
-		
-			
-				<li><a href="/tags/checkpoint/" title="checkpoint">checkpoint<sup>1</sup></a></li>
+				<li><a href="/tags/hive/" title="hive">hive<sup>1</sup></a></li>
 			
 		
 		</ul>
@@ -395,7 +396,7 @@ b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等�
 
   <div class="weiboshow">
   <p class="asidetitle">Weibo</p>
-    <iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="https://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=2&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=1&uid=1619689670&verifier=4bba2588&dpc=1"></iframe>
+    <iframe width="100%" height="119" class="share_self"  frameborder="0" scrolling="no" src="https://widget.weibo.com/weiboshow/index.php?language=&width=0&height=119&fansRow=2&ptype=1&speed=0&skin=9&isTitle=1&noborder=1&isWeibo=0&isFans=0&uid=1619689670&verifier=&dpc=1"></iframe>
 </div>
 
 
