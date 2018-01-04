@@ -144,8 +144,10 @@ solr的查询策略：利用了索引term的字典有序可以有效地对上面
 - 需要score的情况(大坑，要缓存所有term对应的docId及对应的geohash中心点)，只说明score=distance,score=recipDistance图中已经说明：
 基本流程和上面一致。说明下主要不同的地方：
 - Query对象：其创建的是FilteredQuery，其中有几个属性关系到打分：
+```java
       a、ShapeFieldCacheDistanceValueSource: 用于生成FuncitonValues对象来给各个doc打分，只用于计算Point类的doc，非Point类的doc都打180分(即非Point都是最近的)。其主要属性PointPrefixTreeFieldCacheProvider缓存了所有Point类doc的docId–>point所在geohash的中心点(大坑之所在)。
       b、FunctionQuery:其中包括了FunctionWeight、AllScorer、FunctionValues等主要用于空间索引的打分操作。
+```
 - Scorer.score()调用的是AllScorer.score(): 解析出符合条件的docId，然后通过ShapeFieldCacheDistanceValueSource生成的FunctionValues得到docId对应的中心点，计算与查询Shape中心的距离来作为score。再放到优先队列中进行排序，从而实现按score排序的功能。
 
 ### 一些主要类说明：
