@@ -23,7 +23,7 @@ keyvalue shuffle操作主要分成两类：对一个RDD按key进行聚合combine
 shffule过程这里只是简单画了下，以后再写其他文章来深入讲解这块。
 
 
-###combineByKey
+### combineByKey
 先上代码：
 ```scala
 	def combineByKey[C](createCombiner: V => C,
